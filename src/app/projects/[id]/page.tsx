@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import ProjectInfoTab from '@/components/workspace/ProjectInfoTab';
 import ContactsTab from '@/components/workspace/ContactsTab';
 import MillworkTab from '@/components/workspace/MillworkTab';
@@ -9,7 +9,8 @@ import EstimateTab from '@/components/workspace/EstimateTab';
 import ReviewFlagsTab from '@/components/workspace/ReviewFlagsTab';
 import EvidenceTab from '@/components/workspace/EvidenceTab';
 
-export default function ProjectWorkspace({ params }: { params: { id: string } }) {
+export default function ProjectWorkspace({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [activeTab, setActiveTab] = useState('project_info');
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
   useEffect(() => {
     async function fetchProject() {
       try {
-        const res = await fetch(`/api/projects/${params.id}`);
+        const res = await fetch(`/api/projects/${id}`);
         const data = await res.json();
         setProject(data);
       } catch (err) {
@@ -28,7 +29,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
       }
     }
     fetchProject();
-  }, [params.id]);
+  }, [id]);
 
   const handleUpdate = async (section: string, data: any) => {
     // For now, log the intended update - in a real app, this would be a PATCH to /api/projects/[id]/[section]
@@ -38,7 +39,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
     setProject((prev: any) => ({ ...prev, [section]: data }));
     
     // In a real implementation, we would call the API here:
-    // await fetch(`/api/projects/${params.id}/${section}`, { method: 'PATCH', body: JSON.stringify(data) });
+    // await fetch(`/api/projects/${id}/${section}`, { method: 'PATCH', body: JSON.stringify(data) });
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Loading project...</div>;
