@@ -1,0 +1,1662 @@
+Below is the master architecture draft for the MGS tender analysis and estimating web application. It is written as an early-project-discovery document for a development team. I have made reasonable assumptions where needed and marked open items at the end of each section. The core intent stays aligned with your stated split: GPT handles document understanding, scope reasoning, schedule creation, wording, confidence, and evidence; Python handles state, UI, calculations, persistence, exports, and versioning. 
+
+# MGS Tender Analysis and Estimating Platform
+
+## Master Architecture Document
+
+### Version 0.1 Discovery Draft
+
+## 1. Product purpose
+
+This product is a web-based estimating workspace for Modern Grain Studios. Its job is to accept one or more tender document uploads, analyze them for commercial millwork relevance, extract project and scope intelligence, generate an evidence-based draft millwork and finish schedule, and convert that into an editable estimating environment that produces both an internal costing view and a client-facing estimate. The system must support iterative improvement during the life of a project rather than rerunning the project from scratch each time. 
+
+The platform is not a static estimator. It is a hybrid review engine with four actors:
+
+1. User
+2. GPT analysis layer
+3. Python application layer
+4. Persistent project state
+
+The product must support two entry paths:
+
+* user starts in ChatGPT and triggers project creation
+* user starts in the web app and uploads files there
+
+In both cases, the system must converge to the same project record and the same downstream workflow.
+
+## 2. Product goals
+
+The application is being built to reduce manual tender review time, improve estimating consistency, create auditability around scope interpretation, and allow iterative refinement without losing prior work.
+
+Primary goals:
+
+* detect and classify tender documents
+* determine whether the project is relevant to MGS millwork scope
+* identify whether scope is install-only, supply-and-install, or mixed/unclear
+* preserve an existing usable millwork schedule when present
+* construct a millwork schedule when no schedule exists
+* extract or build a finish schedule
+* prefill estimate line items, labor assumptions, and wording
+* preserve evidence and confidence for all major outputs
+* let the user edit, override, regroup, and finalize the estimate
+* generate client-facing estimate outputs from template-controlled presentation rules
+
+Secondary goals:
+
+* allow supplemental files to improve an existing project rather than replace it
+* support row-level or item-level re-review by GPT
+* log repeated mistakes, corrections, and rule ideas for later system improvement
+
+## 3. Operating principles
+
+These rules govern the entire application and should be treated as product law.
+
+### 3.1 Drawings override specs
+
+Architectural drawings are the primary authority for millwork scope. Specs, narratives, brochures, or supplementary documents may confirm or clarify, but may not override drawings. 
+
+### 3.2 Demolition drawings do not define new work
+
+Demolition plans must not be used to infer new millwork scope. 
+
+### 3.3 Evidence-based interpretation only
+
+The system must not invent scope because something is common or likely. Every significant conclusion must point to evidence. 
+
+### 3.4 Preserve clean schedules
+
+If a clean, usable millwork or casework schedule exists in the drawing set, that schedule remains the base rather than being reconstructed from scratch. 
+
+### 3.5 Functional-item logic
+
+Rows should represent meaningful functional scope, not tiny internal components. A kitchen, vanity, reception desk, wall panel system, or washroom millwork grouping is a valid line item. Toe kicks, fillers, single gables, and single edges are normally nested under a parent item unless explicitly needed.
+
+### 3.6 Progressive refinement, not destructive reruns
+
+When new files are added or comments are made on specific items, the system should update only impacted portions of the project where possible. It must not wipe and rebuild the entire estimate unless the user explicitly requests a full regeneration.
+
+### 3.7 User override supremacy
+
+The user must always be able to move rows, rename items, split parents into subitems, merge rows, lock values, replace wording, and override scope conclusions. The system assists; it does not own the final answer.
+
+## 4. High-level architecture
+
+## 4.1 Core architectural pattern
+
+The application should be designed around a single source of truth called the Project State. GPT and Python do not directly “own” the project. They both read from and write to the Project State.
+
+### Main components
+
+1. Web frontend
+2. Python backend/API
+3. Document processing service
+4. GPT orchestration layer
+5. File storage
+6. Database
+7. Export engine
+8. Rules/debug knowledge area
+
+### Conceptual flow
+
+Files uploaded → project created → documents indexed → GPT triage and extraction → structured results written to Project State → Python builds editable estimating tables → user edits → GPT targeted review actions if needed → final estimate output and PDF export.
+
+## 4.2 Responsibility split
+
+### GPT responsibilities
+
+* classify uploaded documents
+* infer project type
+* infer scope relevance
+* classify install-only vs supply-and-install vs mixed/unclear
+* preserve or build millwork schedule
+* preserve or build finish schedule
+* draft SOW wording
+* propose grouping and parent/subitem relationships
+* explain evidence
+* assign confidence
+* re-review selected items on demand
+
+### Python responsibilities
+
+* file upload and storage
+* page rendering and text extraction pipeline
+* central project state management
+* editable UI
+* row and table calculations
+* labor and material pricing logic
+* subcontractor cost blocks
+* template builder
+* PDF estimate generation
+* versioning, audit logs, and persistence
+* user permissions and project saving
+* delta tracking when supplemental files are added
+
+That split mirrors your stated architecture and should remain clean through the build. 
+
+## 5. User roles
+
+Version 1 can assume a single primary user role, but the model should support future role separation.
+
+### 5.1 Estimator/Admin
+
+Can create projects, upload files, run analysis, edit all fields, create templates, override calculations, and export estimates.
+
+### 5.2 Reviewer
+
+Can inspect evidence, comment, request re-analysis, but may not edit locked pricing fields.
+
+### 5.3 Future roles
+
+Sales, PM, accounting, and junior estimator can be added later, but should not shape Version 1 complexity.
+
+Open questions:
+
+* Is login required in Version 1 or is this initially single-user/private?
+* Should multiple users be able to edit the same project simultaneously?
+
+## 6. Main application pages
+
+## 6.1 Projects page
+
+Purpose: list all estimates and allow creation of a new project.
+
+Functions:
+
+* create new estimate/project
+* drag-and-drop uploads
+* status indicators
+* search, filter, sort
+* quick summary cards
+* recent activity
+* overdue review flags
+* export status
+
+Each project card should show:
+
+* project title
+* address
+* current phase/status
+* number of uploaded files
+* last updated timestamp
+* scope classification status
+* review warning count
+
+## 6.2 Project workspace
+
+This is the main operating page. Everything meaningful happens here.
+
+Recommended section layout:
+
+1. Project summary container
+2. Document registry container
+3. Scope decision container
+4. Millwork schedule container
+5. Finish schedule container
+6. Internal estimate container
+7. Review flags container
+8. Client estimate preview container
+9. Notes / comments / re-analysis container
+10. Audit/version container
+
+Each section should live in its own container. Tables may appear in tabs within those containers. A summary dashboard at the project level should surface counts, warnings, confidence, and completion state.
+
+## 6.3 Estimate template builder
+
+Purpose: let the user visually define client-facing estimate layouts.
+
+Functions:
+
+* upload logo
+* define headers and footers
+* arrange fields and sections
+* choose visible columns
+* choose whether to show parent rows only, subitems, or a mixed view
+* manage notes/exclusions layout
+* save templates
+* preview print/PDF result
+
+## 6.4 Rules / debug / lessons page
+
+Purpose: create a structured internal improvement area.
+
+Functions:
+
+* log repeated mistakes
+* classify errors by type
+* record user corrections
+* record prompt weaknesses
+* record extraction weaknesses
+* surface suggested rule improvements
+* group issues across projects
+
+This is your manual memory substitute and should be built early enough to avoid losing learning.
+
+## 7. Project lifecycle and state machine
+
+A project should move through explicit statuses.
+
+Recommended statuses:
+
+* Draft
+* Files Uploaded
+* Indexed
+* Triaged
+* Summary Extracted
+* Scope Classified
+* Millwork Schedule Built
+* Finish Schedule Built
+* Estimate Prefilled
+* User Review In Progress
+* Secondary Review Requested
+* Finalized
+* Exported
+* Archived
+
+The backend should track current state, prior state, and timestamps for each transition.
+
+Open questions:
+
+* Should partial failures block progression or only mark warning states?
+* Should there be a manual “approve stage” button between major transitions?
+
+## 8. Core data model
+
+## 8.1 Project
+
+Represents the full estimate workspace.
+
+Fields:
+
+* project_id
+* project_title
+* estimate_number
+* project_address
+* city
+* province
+* issue_date
+* due_date
+* project_type
+* tender_discipline
+* designer_name
+* designer_company
+* designer_contact
+* descriptive_summary
+* driving_distance_km
+* driving_time_minutes
+* scope_classification
+* scope_confidence
+* project_status
+* active_template_id
+* created_by
+* created_at
+* updated_at
+* locked_for_export
+* version_number
+
+## 8.2 File asset
+
+Represents every uploaded file.
+
+Fields:
+
+* file_id
+* project_id
+* original_filename
+* source_interface
+* upload_batch_id
+* mime_type
+* page_count
+* file_storage_path
+* extracted_text_path
+* rendered_image_path_prefix
+* checksum
+* uploaded_at
+* replaced_by_file_id nullable
+* is_active
+
+## 8.3 Document registry record
+
+Represents GPT/Python interpretation of a file or page cluster.
+
+Fields:
+
+* registry_id
+* project_id
+* file_id
+* document_type
+* discipline
+* relevance_to_mgs
+* confidence
+* likely_relevant_pages
+* likely_noise_pages
+* notes
+* extracted_at
+
+## 8.4 Evidence record
+
+Critical for trust and auditability.
+
+Fields:
+
+* evidence_id
+* project_id
+* source_file_id
+* source_page_number
+* source_region_coordinates nullable
+* screenshot_path
+* source_text_excerpt
+* interpretation_note
+* evidence_type
+* confidence
+* linked_entity_type
+* linked_entity_id
+
+Evidence types may include:
+
+* schedule cell
+* detail callout
+* elevation cue
+* finish schedule clue
+* note annotation
+* explicit supply/install responsibility
+* user-supplied correction
+
+## 8.5 Millwork item
+
+Represents parent and child scope items.
+
+Fields:
+
+* item_id
+* project_id
+* parent_item_id nullable
+* item_name
+* display_label
+* room_area
+* floor_level
+* functional_group
+* item_type_tag
+* scope_description
+* scope_status
+* install_supply_type
+* quantity
+* unit_label
+* finish_codes
+* evidence_confidence
+* review_status
+* user_locked
+* created_by_source
+* visible_in_client_estimate
+* sort_order
+
+Scope status values:
+
+* new
+* repair
+* refinish
+* reface
+* existing_to_remain
+* optional
+* conditional
+
+These support your hospitality conversion logic. 
+
+## 8.6 Finish schedule item
+
+Fields:
+
+* finish_id
+* project_id
+* finish_code
+* material_category
+* material_name
+* description
+* areas_used
+* unit_type
+* unit_cost
+* vendor_placeholder
+* notes
+* confidence
+* linked_item_ids
+
+## 8.7 Estimate row
+
+This is the pricing engine row. It may correspond to a parent or child millwork item.
+
+Fields:
+
+* estimate_row_id
+* project_id
+* linked_item_id
+* parent_estimate_row_id nullable
+* row_label
+* sow_text
+* material_cost
+* hardware_cost
+* design_hours
+* fabrication_headcount
+* fabrication_hours_each
+* install_headcount
+* install_hours_each
+* fabrication_cost
+* installation_cost
+* item_unit_price
+* quantity
+* line_total
+* misc_cost
+* misc_notes
+* pricing_method
+* overhead_included_flag
+* tax_applicable_flag
+* manual_override_flag
+* lock_calculation_flag
+
+## 8.8 Subcontractor block
+
+Needed for non-cabinetry scopes like stone, metal, and glass.
+
+Fields:
+
+* subcontract_block_id
+* estimate_row_id
+* subcontract_type
+* material_subcost
+* fabricate_subcost
+* install_subcost
+* supplier_name
+* quote_reference
+* notes
+
+Subcontract types:
+
+* countertop_stone
+* countertop_quartz
+* countertop_solid_surface
+* countertop_postformed
+* metalwork
+* glass
+* mirror
+* other_specialty
+
+## 8.9 Client estimate presentation row
+
+Separates presentation from internal costing.
+
+Fields:
+
+* client_row_id
+* project_id
+* source_estimate_row_ids
+* display_label
+* display_sow
+* display_price
+* display_order
+* template_visibility_rule
+* group_name
+* render_style
+
+This lets the user combine multiple internal rows into a cleaner client-facing row.
+
+## 8.10 Review flag
+
+Fields:
+
+* flag_id
+* project_id
+* linked_entity_type
+* linked_entity_id
+* severity
+* category
+* description
+* suggested_action
+* resolved_flag
+* created_at
+* resolved_at
+
+Categories:
+
+* missing_scope
+* contradictory_scope
+* weak_finish_link
+* weak_item_grouping
+* uncertain_supply_install
+* low_confidence_evidence
+* pricing_placeholder
+* user_requested_review
+
+## 8.11 Comment / re-analysis request
+
+Fields:
+
+* comment_id
+* project_id
+* linked_entity_type
+* linked_entity_id
+* user_comment
+* request_type
+* status
+* response_summary
+* created_at
+
+## 8.12 Version snapshot
+
+Fields:
+
+* snapshot_id
+* project_id
+* snapshot_type
+* created_at
+* created_by
+* changed_entities_summary
+* snapshot_payload_reference
+
+## 9. File ingestion and document processing pipeline
+
+## 9.1 Upload handling
+
+When files are uploaded:
+
+* assign project or create one
+* store raw files
+* calculate checksum
+* create upload batch
+* queue processing
+* render pages to images
+* extract text by page if possible
+* store OCR/text layer separately
+* create document registry placeholders
+
+## 9.2 Page rendering and text extraction
+
+Every page should have:
+
+* page number
+* rendered image
+* extracted text
+* OCR confidence if OCR used
+* page dimensions
+* thumbnail path
+
+The UI will later use these for evidence popups and targeted re-analysis.
+
+## 9.3 Duplicate and supplemental file behavior
+
+If a file appears to duplicate an existing upload:
+
+* alert the user
+* allow keep-both or replace decision
+
+If a file is supplemental:
+
+* append to same project
+* create delta processing scope
+* avoid full reset
+* mark newly affected sections only
+
+Open questions:
+
+* Should addenda automatically supersede older sheets if titles or numbers match?
+* Should superseded files remain visible in history but inactive?
+
+## 10. GPT document intelligence workflow
+
+## 10.1 Stage A: package triage
+
+Inputs:
+
+* file metadata
+* per-page text
+* page images or page snippets
+* prior project context if any
+
+Outputs:
+
+* project candidate title
+* project type
+* likely relevant files
+* likely relevant pages
+* likely discipline groupings
+* relevance score to MGS scope
+
+## 10.2 Stage B: project summary extraction
+
+Required outputs:
+
+* title
+* address
+* city/province
+* issue date
+* due date if found
+* designer or consultant info
+* building type
+* project summary description
+* tender discipline
+* likely union/non-union if evidence exists
+
+## 10.3 Stage C: scope classification
+
+Determine:
+
+* install only
+* supply and install
+* mixed/unclear
+
+The weighted evidence model should follow the priority already defined in the brief:
+highest weight to responsibility schedules and explicit supply/install notes, medium weight to schedule and detail structure, lower weight to scattered notes and specs. 
+
+The output must include:
+
+* decision
+* confidence
+* evidence summary
+* contradictory evidence if any
+
+## 10.4 Stage D: millwork schedule extraction
+
+Extraction hierarchy:
+
+1. existing schedule
+2. detail sheets and millwork detail pages
+3. enlarged plans and callouts
+4. elevations and room context
+
+If an existing schedule exists, duplicate it first and enrich it second.
+
+If no existing schedule exists, GPT must construct one using the evidence ladder above.
+
+The output per item should include:
+
+* item_id
+* name
+* room/area
+* item tags
+* finish codes if visible
+* source evidence
+* confidence
+
+This remains aligned with your stated millwork schedule logic. 
+
+## 10.5 Stage E: finish schedule extraction
+
+Build or extract a finish schedule with:
+
+* material code
+* material category
+* description
+* areas used
+* unit type
+* placeholder unit cost
+
+Detect materials like melamine, laminate, veneer, quartz, solid surface, metalwork, mirror, glass, and upholstery. 
+
+## 10.6 Stage F: wording generation
+
+GPT should draft:
+
+* row-level SOW text
+* client-facing wording suggestions
+* exclusions or assumptions text when requested
+
+All wording remains editable.
+
+## 10.7 Stage G: targeted secondary actions
+
+Inside a project, GPT must support narrow follow-up actions:
+
+* re-evaluate selected item
+* explain evidence for selected item
+* incorporate supplemental files
+* revise wording only
+* regroup or split row recommendation
+
+These actions should be scoped, additive, and non-destructive.
+
+## 11. Millwork schedule logic in detail
+
+## 11.1 Row-generation rule
+
+A row becomes its own millwork item when it represents a meaningful scope unit from an estimating or client presentation perspective.
+
+Examples:
+
+* kitchen millwork
+* washroom millwork
+* boardroom credenza
+* reception desk
+* branding wall
+* guestroom closet
+* vanity group
+
+Not separate rows by default:
+
+* toe kick
+* single filler
+* one side panel
+* one edge treatment
+* one hinge set
+
+## 11.2 Parent/subitem rule
+
+Create parent items when:
+
+* multiple meaningful components belong to one area
+* the scope is conceptually one object but contains separable cost components
+* detail density is high
+* GPT is uncertain and wants to preserve finer structure
+* the user may want to show one row externally and many rows internally
+
+Create subitems when:
+
+* cabinetry and countertop should be priced independently
+* glass, stone, metal, or specialty work differs in costing method
+* different room components belong under one area heading
+* repeated but related components need grouping
+
+## 11.3 Room-based grouping
+
+By default, parents should usually be room or area based unless the item is clearly project-wide, repeated, or generic.
+
+Examples:
+
+* Washroom Millwork → vanity, mirror, supports
+* Kitchen Millwork → cabinetry, island, countertop
+* Boardroom Feature Wall → panels, integrated metal, glass shelf
+
+## 11.4 Repeat item handling
+
+When a small scope repeats many times across rooms:
+
+* allow quantity-based grouping
+* preserve room distribution in evidence or notes
+* avoid cluttering the visible estimate with dozens of identical rows unless user chooses detail mode
+
+## 12. Estimating engine logic
+
+## 12.1 Internal estimate table
+
+The internal estimate table should be the primary calculation surface.
+
+Required columns:
+
+* item/row label
+* SOW
+* material
+* hardware
+* design hours
+* fabrication man × hours
+* install man × hours
+* item unit price
+* quantity
+* line total
+* misc items/costs
+* subcontractor fields where applicable
+
+Derived calculations:
+
+* fabrication cost = fabrication headcount × fabrication hours each × general labor rate
+* installation cost = install headcount × install hours each × general labor rate
+* design cost = design hours × designer rate
+* PM cost may be added if later activated
+* line total = unit price × quantity or calculated row logic depending on structure
+
+## 12.2 Labor rates
+
+Initial baseline from the brief:
+
+* designer: 180/hr
+* project manager: 120/hr
+* general labor: 95/hr 
+
+These should be system-configurable defaults, not hard-coded forever.
+
+## 12.3 Pricing method flags
+
+Each row should carry a pricing method:
+
+* direct formula
+* finish schedule driven
+* subcontractor driven
+* user entered lump sum
+* mixed/manual
+
+This helps auditability.
+
+## 12.4 Misc items
+
+Each row should support additional misc cost entries for:
+
+* freight
+* special wrapping
+* site conditions
+* access
+* specialty consumables
+* coordination
+* other ad hoc items
+
+Version 1 can start with one misc amount and one misc note per row. Version 2 may allow multiple misc subentries.
+
+## 12.5 Parent/subitem calculations
+
+If a parent has subitems:
+
+* parent calculation fields become read-only
+* parent total = sum of children
+* client-facing display may still show the parent only
+
+If a row has no children:
+
+* it remains directly editable
+
+This reflects your required nested estimating behavior. 
+
+## 13. Subcontractor logic
+
+When the system identifies stone, quartz, solid surface, postformed countertops, metalwork, glass, or mirror, it should automatically enable a subcontractor calculation block for that row.
+
+For each applicable row, support:
+
+* subcontract material
+* subcontract fabricate
+* subcontract install
+* supplier note
+* quote reference
+* inclusion note
+
+This avoids forcing all specialty work through cabinetry logic.
+
+Open questions:
+
+* Should subcontractor totals roll into material only, or display separately in internal view?
+* Should certain subcontractor types have default templates?
+
+## 14. Client estimate presentation engine
+
+## 14.1 Separate presentation layer
+
+The client-facing estimate must be independent from the internal costing table. It should pull from internal data through template rules.
+
+The user must be able to choose:
+
+* parent rows only
+* child rows only
+* parent plus selected children
+* grouped sections by room, scope type, or major area
+
+## 14.2 Template builder capabilities
+
+Each estimate template should allow control over:
+
+* logo
+* brand colors
+* header layout
+* visible metadata fields
+* table columns
+* notes section
+* assumptions section
+* exclusions section
+* subtotal, overhead, HST, total layout
+* page break behavior
+* PDF print styling
+
+## 14.3 Financial display defaults
+
+* overhead default = 2.5 percent, editable
+* if overhead = 0, hide it from output
+* HST = 13 percent for Ontario
+
+## 15. Evidence, confidence, and explainability
+
+Every major extracted object should have an evidence drawer or popup.
+
+For each item, the evidence viewer should show:
+
+* source file
+* page number
+* screenshot snippet if available
+* source text excerpt
+* explanation of why the item was identified
+* confidence score
+* source type, such as schedule match, detail clue, elevation clue, finish link, explicit note, or user correction
+
+This is essential to satisfy trust and auditability. The brief explicitly requires preservation of what was detected, why, where it came from, and how confident the system is. 
+
+## 16. Notes, comments, and targeted GPT actions
+
+Inside the project workspace, the user must be able to comment on:
+
+* a specific row
+* a specific finish code
+* a specific scope decision
+* a specific evidence source
+
+Supported actions:
+
+* Explain this row
+* Re-analyze this row
+* Re-analyze this room
+* Reword SOW
+* Add supplemental file
+* Merge with another row
+* Split into children
+* Mark as user-corrected
+
+The system should preserve both the user comment and the GPT follow-up response.
+
+## 17. Project versioning and audit trail
+
+The platform must preserve history. At minimum, create snapshots on:
+
+* initial upload complete
+* first GPT extraction complete
+* first estimate prefill complete
+* any major user edit batch
+* supplemental file addition
+* targeted GPT re-analysis completion
+* finalization
+* export
+
+The user should be able to inspect:
+
+* what changed
+* when it changed
+* what caused the change
+* whether it came from GPT, Python logic, or manual override
+
+## 18. Improvement and debugging system
+
+A dedicated page or module should capture post-project learning.
+
+Each issue record should include:
+
+* project
+* issue type
+* what went wrong
+* correct interpretation
+* whether cause was prompt, extraction logic, grouping logic, UI gap, or pricing logic
+* recommended rule change
+* whether fixed in system or pending review
+
+This module should support cross-project reporting so that after 10 to 15 projects, recurring issues can be reviewed and converted into:
+
+* improved prompt rules
+* improved row logic
+* improved UI defaults
+* improved evidence heuristics
+* improved material mapping
+* improved grouping logic
+
+This is a critical part of the long-term product strategy.
+
+## 19. Suggested backend modules
+
+The Python backend should be split into clean modules.
+
+### 19.1 Project service
+
+Creates, updates, archives, and snapshots projects.
+
+### 19.2 File service
+
+Handles uploads, storage, deduplication, and file registry.
+
+### 19.3 Document processing service
+
+Renders pages, extracts text, stores page-level artifacts.
+
+### 19.4 GPT orchestration service
+
+Packages prompts, sends context, parses structured outputs, writes them into Project State.
+
+### 19.5 Schedule service
+
+Builds and updates millwork and finish schedules.
+
+### 19.6 Estimating service
+
+Creates estimate rows, runs formulas, calculates totals.
+
+### 19.7 Template service
+
+Manages client-facing estimate templates and rendering rules.
+
+### 19.8 Evidence service
+
+Stores and retrieves evidence references and image snippets.
+
+### 19.9 Review service
+
+Creates and resolves review flags, comments, re-analysis tasks.
+
+### 19.10 Export service
+
+Builds PDF and spreadsheet outputs.
+
+### 19.11 Rules/debug service
+
+Stores lessons learned and candidate rule changes.
+
+## 20. Suggested frontend modules
+
+### 20.1 Project list and intake
+
+### 20.2 Workspace containers
+
+### 20.3 Data grid engine
+
+Tables should support drag, sort, regroup, inline edit, expand/collapse, and row-level actions.
+
+### 20.4 Evidence viewer
+
+Popup or side drawer showing evidence details.
+
+### 20.5 Template editor
+
+Visual arrangement interface.
+
+### 20.6 Review center
+
+Shows all flags, comments, unresolved issues.
+
+### 20.7 Export preview
+
+Shows print/PDF rendering before final export.
+
+## 21. Non-functional requirements
+
+### 21.1 Performance
+
+Large tender sets should process asynchronously. The UI should show status, not freeze.
+
+### 21.2 Reliability
+
+No destructive overwrite of major user changes without confirmation.
+
+### 21.3 Traceability
+
+Every major AI-driven decision must be explainable and linkable to evidence.
+
+### 21.4 Flexibility
+
+Projects vary widely. The product must avoid assuming a single clean document format.
+
+### 21.5 Extensibility
+
+The architecture should later support supplier pricing integration, quantity takeoff enhancements, and multi-user collaboration.
+
+## 22. Version 1 scope recommendation
+
+Version 1 should include:
+
+* project creation
+* file upload
+* page rendering and text extraction
+* GPT triage
+* project summary extraction
+* scope classification
+* millwork schedule extraction/build
+* finish schedule extraction/build
+* internal estimate table
+* parent/subitem support
+* subcontractor blocks
+* evidence viewer
+* row-level comments and re-analysis
+* client estimate template selection
+* PDF export
+* rules/debug page
+
+Version 1 should not include:
+
+* advanced automated quantity takeoff from geometry
+* supplier catalog pricing automation
+* real-time collaborative editing
+* deep ERP/accounting integrations
+* fully automated learning loops without human review
+
+## 23. Discovery questions for the development team
+
+These are the main open questions I would hand to the team now.
+
+### Product/process
+
+* What degree of manual stage approval should exist between GPT passes?
+* Should the user be able to lock a scope section before supplemental files are added?
+
+### Document handling
+
+* How should superseded files be marked when addenda change prior sheets?
+* How much OCR/image handling is required for low-quality scans?
+
+### Estimating logic
+
+* Should PM hours be active in Version 1 or only reserved in schema?
+* Should design hours always be a separate field even when user uses lump-sum shop drawings?
+
+### UI
+
+* Should the workspace default to summary-first or unresolved-flags-first?
+* Do you want item regrouping by drag-and-drop in Version 1 or later?
+
+### Export
+
+* Should client-facing PDFs support alternate pricing breakdowns by template?
+* Should the internal estimate export remain spreadsheet-based or also produce PDF?
+
+### Permissions
+
+* Is this single-user first, or should the schema assume multiple estimators?
+
+## 24. Recommended implementation sequence
+
+### Phase 1
+
+Foundation
+
+* database schema
+* project model
+* file model
+* upload pipeline
+* page rendering
+* project workspace shell
+
+### Phase 2
+
+Document intelligence
+
+* GPT triage
+* project summary
+* scope classification
+* evidence storage
+
+### Phase 3
+
+Schedule engine
+
+* millwork schedule extraction/build
+* finish schedule extraction/build
+* row grouping model
+
+### Phase 4
+
+Estimating engine
+
+* internal estimate rows
+* labor/material formulas
+* subcontractor blocks
+* totals and overrides
+
+### Phase 5
+
+Review and explainability
+
+* evidence viewer
+* review flags
+* row comments
+* targeted re-analysis
+
+### Phase 6
+
+Presentation/export
+
+* template builder
+* client-facing preview
+* PDF export
+
+### Phase 7
+
+Improvement system
+
+* debug log
+* rules candidates
+* cross-project issue tracking
+
+## 25. Executive summary for development handoff
+
+This application should be built as a persistent estimating workspace, not as a one-time AI extraction tool. The center of the system is a shared Project State that both GPT and Python operate against. GPT is responsible for understanding and interpreting tender documents; Python is responsible for managing the estimating environment, calculations, templates, and persistence. The user remains in control at all times through editing, regrouping, override, and targeted re-analysis. The platform must preserve evidence, confidence, and version history so that each estimate is explainable and improvable over time. 
+
+
+---------------------------------------
+AntiGravity’s responsibility in this project is to build the **application system**, not just a UI shell.
+
+Treat this product as a full estimating platform with an AI analysis layer connected to it. Even if GPT Actions are configured outside AntiGravity later, AntiGravity must understand the complete end-to-end architecture because the web app, project state, evidence system, and review workflow all need to be designed to support those Actions properly.
+
+## AntiGravity’s role in the project
+
+AntiGravity should be responsible for the following major areas.
+
+### 1. System architecture and backend foundation
+
+AntiGravity should design and implement the core backend structure of the product, including:
+
+* project model
+* file model
+* document/page registry
+* central project state
+* estimate row data model
+* finish schedule model
+* evidence model
+* review/comment model
+* versioning/snapshots
+* rules/debug log model
+
+This is one of the most important responsibilities.
+The system must be built around a **shared persistent project state** so that:
+
+* Python logic can read and write project data
+* GPT outputs can be stored in structured form
+* user edits can be preserved
+* follow-up GPT Actions can operate on specific parts of an existing project instead of rerunning everything
+
+AntiGravity should assume that the project is iterative and non-destructive.
+
+---
+
+### 2. Database design
+
+AntiGravity should define and build the database structure required to support:
+
+* projects
+* users
+* uploads
+* rendered pages
+* extracted text
+* document classifications
+* millwork items
+* finish schedule items
+* estimate rows
+* subcontractor cost blocks
+* client-facing presentation rows
+* evidence references
+* comments / re-analysis requests
+* review flags
+* templates
+* versions / snapshots
+* debug / lessons / rule candidates
+
+The database should be designed for:
+
+* persistence
+* version control
+* auditability
+* future scaling
+* selective updates to parts of a project
+
+This is not a flat-file tool. It needs a real structured data layer.
+
+---
+
+### 3. File ingestion and document handling
+
+AntiGravity should build the entire document intake pipeline, including:
+
+* project creation
+* file uploads
+* batch tracking
+* raw file storage
+* page rendering
+* extracted text storage
+* OCR integration if needed
+* duplicate file handling
+* supplemental file handling
+* file-to-project linking
+* file status tracking
+
+Supplemental files are important.
+When new files are uploaded later, the system must treat them as **additions to an existing project context**, not replacements by default.
+
+---
+
+### 4. Project workspace and user interface
+
+AntiGravity should build the web app interface and project workspace.
+
+This includes:
+
+* project list/dashboard
+* project summary section
+* document registry section
+* scope classification section
+* millwork schedule section
+* finish schedule section
+* internal estimate table
+* review flags section
+* evidence viewer
+* client estimate preview
+* comments / follow-up requests section
+* version history section
+* rules/debug/improvement page
+* estimate template builder page
+
+Important note:
+The interface does **not** need to be perfected at the beginning.
+The UI should be built container-first and workflow-first.
+
+Each chunk of information should live in a clear container.
+Tables may live in tabs.
+A project dashboard may summarize major states.
+The visual refinement can happen later once the process is working.
+
+So AntiGravity should focus first on:
+
+* usability
+* modular structure
+* editability
+* evidence visibility
+* workflow clarity
+
+not pixel perfection.
+
+---
+
+### 5. Internal estimating engine and calculation logic
+
+AntiGravity must build the estimating engine in Python/backend logic.
+
+This includes:
+
+* row creation and storage
+* parent/subitem relationships
+* labor and material fields
+* subcontractor calculation blocks
+* misc cost handling
+* formula execution
+* totals
+* quantity handling
+* unit price handling
+* line total handling
+* client-facing display selection logic
+* overhead logic
+* HST logic
+* export logic
+
+This is a core AntiGravity responsibility.
+
+The app must support internal estimating columns such as:
+
+* material
+* hardware
+* design hours
+* fabrication man x hours
+* install man x hours
+* item unit price
+* quantity
+* line total
+* misc items
+
+And for specialty scopes such as:
+
+* stone
+* quartz
+* solid surface
+* postformed countertops
+* metalwork
+* glass/mirror
+
+the app must support additional subcontractor fields:
+
+* subcontractor material
+* subcontractor fabricate
+* subcontractor install
+
+AntiGravity should treat the calculation engine as independent from GPT.
+GPT may prefill values and wording, but the calculation engine belongs to the app.
+
+---
+
+### 6. Template system and client-facing presentation engine
+
+AntiGravity should build the estimate template builder and rendering engine.
+
+This includes:
+
+* template creation
+* layout editing
+* logo upload
+* visible columns control
+* visual arrangement of estimate sections
+* header/footer setup
+* notes/exclusions layout
+* parent/subitem display control
+* estimate preview
+* print/PDF output
+
+The client-facing sheet is a presentation layer, not a clone of the internal estimate.
+
+User must be able to decide:
+
+* show parent rows only
+* show nested rows
+* combine rows
+* present grouped totals
+
+AntiGravity should build this as a flexible templating system, not a fixed export.
+
+---
+
+### 7. Evidence and auditability layer
+
+AntiGravity should build the evidence infrastructure and UI.
+
+This includes:
+
+* evidence records
+* page references
+* cropped snippets or source screenshots
+* source text excerpts
+* linkage of evidence to rows/items/decisions
+* evidence popups or side drawers
+* confidence display
+* source-type tagging
+
+This is critical to user trust.
+
+The product must be able to show:
+
+* where the information came from
+* why the system concluded that this is a millwork item
+* how confident the system is
+* whether the source was schedule-based, detail-based, elevation-based, finish-based, or user-corrected
+
+AntiGravity must not treat this as optional.
+
+---
+
+### 8. Review workflow, comments, and re-analysis infrastructure
+
+AntiGravity must build the infrastructure that allows iterative refinement.
+
+This includes:
+
+* row-level comments
+* project-level comments
+* selected-item review requests
+* scoped re-analysis requests
+* unresolved issue tracking
+* review flag resolution
+* delta tracking after supplemental files
+* preservation of previous outputs
+
+This is required because the project will involve **secondary GPT Actions** later, and those Actions need a clean structure to operate on selected rows, areas, or evidence blocks.
+
+---
+
+### 9. Versioning and project history
+
+AntiGravity should build project snapshots and audit history.
+
+The system should preserve:
+
+* upload stages
+* GPT extraction results
+* calculation changes
+* user overrides
+* file additions
+* re-analysis responses
+* finalized estimate versions
+* export versions
+
+The app should support:
+
+* what changed
+* when it changed
+* what caused the change
+* who changed it
+* whether it came from user edit, backend logic, or GPT analysis
+
+---
+
+### 10. Improvement / debugging system
+
+AntiGravity should build an internal area for intelligence improvement.
+
+This should allow logging:
+
+* extraction mistakes
+* grouping mistakes
+* scope classification errors
+* finish mapping errors
+* wording issues
+* evidence problems
+* calculation issues
+* user corrections
+* future rule ideas
+
+This is important because the GPT layer will not have native memory across projects in the way we want, so the platform needs a manual learning loop.
+
+This area should accumulate improvement notes across many projects so we can later review patterns and improve prompts, heuristics, and workflows intentionally.
+
+---
+
+## AntiGravity’s responsibility regarding GPT Actions
+
+AntiGravity needs to clearly understand that this product is being built with **GPT Actions in mind**, even if those Actions are not implemented by AntiGravity directly.
+
+The AI side of this program is not a single one-time prompt.
+It is expected to include:
+
+### A. Primary GPT Action
+
+This is the main first-pass analysis action.
+
+Its role is to:
+
+* inspect uploaded tender documents
+* classify document/package type
+* extract project summary
+* determine install-only vs supply-and-install vs mixed
+* identify relevant sheets
+* preserve or build millwork schedule
+* preserve or build finish schedule
+* prefill wording and draft structured estimate content
+* return confidence and evidence references
+
+### B. Secondary GPT Actions
+
+These are follow-up actions used inside an existing project workspace.
+
+Examples include:
+
+* re-evaluate a selected item
+* explain evidence for one row
+* revise wording for one line item
+* regroup or split a row
+* incorporate supplemental files
+* re-review a specific room or area
+* compare user edits against existing GPT output
+* improve low-confidence or flagged outputs
+
+These secondary actions are essential to the product concept.
+The system is meant to improve incrementally throughout the estimating process, not restart from scratch every time.
+
+So AntiGravity must design the application in a way that supports:
+
+* scoped follow-up actions
+* row-level and section-level context
+* non-destructive updates
+* project-state-based re-analysis
+* delta changes instead of full reruns
+
+---
+
+## What AntiGravity must understand about the GPT side
+
+Even if AntiGravity does not directly configure the GPT Actions, it must understand the program architecture well enough to support them.
+
+The app must be built so that GPT can interact with structured project data cleanly.
+
+That means AntiGravity must design:
+
+* the project state format
+* the containers/sections in the project workspace
+* the item identifiers
+* evidence linking
+* row IDs
+* review flags
+* comments
+* snapshot logic
+* API structure or service boundaries
+* re-analysis request payloads
+
+If these are poorly designed, GPT follow-up actions will become messy and unreliable.
+
+So AntiGravity should assume that the web app is the **system of record**, while GPT Actions act as an **analysis and interpretation layer** working against that system.
+
+---
+
+## Clean responsibility boundary
+
+AntiGravity should own:
+
+* backend architecture
+* database
+* storage
+* project state
+* UI
+* estimate tables
+* calculations
+* templates
+* evidence viewer
+* review/comment system
+* versioning
+* debug/rules module
+* integration-ready architecture for GPT Actions
+
+The GPT layer should own:
+
+* interpretation
+* reasoning
+* scope analysis
+* extraction logic
+* wording generation
+* confidence generation
+* evidence explanation
+* targeted follow-up analysis
+
+So AntiGravity does not need to “be the GPT builder” to be responsible for supporting the GPT-enabled architecture.
+
+---
+
+## Direct message to AntiGravity
+
+Please treat this product as a **hybrid estimating platform with an AI reasoning layer**, not as a simple upload-and-export app.
+
+The AI system will include:
+
+* one primary GPT Action for first-pass project analysis
+* several secondary GPT Actions for scoped follow-up analysis during the estimate lifecycle
+
+Even if those GPT Actions are configured outside your implementation scope, the application must be designed to support them from the start.
+
+The most important requirement is to create a strong structured system underneath:
+
+* central project state
+* item-level IDs
+* evidence records
+* comments/review requests
+* non-destructive updates
+* versioning
+* container-based workspace
+* calculation engine
+* template-driven output
+
+That foundation is what will make the GPT layer usable, reliable, and scalable.
+

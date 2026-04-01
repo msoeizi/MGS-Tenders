@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Project {
+  id                    String   @id @default(uuid())
+  project_title         String
+  estimate_number       String?
+  project_address       String?
+  project_type          String?
+  project_description   String?
+  scope_classification  String? // install_only, supply_and_install
+  distance_from_47_geraldton String?
+  project_status        String   @default("Draft")
+  active_template_id    String?
+  created_by            String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  locked_for_export     Boolean  @default(false)
+  version_number        Int      @default(1)
+
+  contacts              Contact[]
+  fileAssets            FileAsset[]
+  documentRegistry      DocumentRegistry[]
+  evidenceRecords       EvidenceRecord[]
+  millworkItems         MillworkItem[]
+  finishScheduleItems   FinishScheduleItem[]
+  estimateRows          EstimateRow[]
+  presentationRows      ClientPresentationRow[]
+  reviewFlags           ReviewFlag[]
+  comments              Comment[]
+  versionSnapshots      VersionSnapshot[]
+}
+
+model Contact {
+  id              String   @id @default(uuid())
+  project_id      String
+  project         Project  @relation(fields: [project_id], references: [id])
+  company         String?
+  contact_name    String?
+  email           String?
+  phone_number    String?
+  category        String? // architect, general_contractor, etc.
+}
+
+model FileAsset {
+  id                         String   @id @default(uuid())
+  project_id                 String
+  project                    Project  @relation(fields: [project_id], references: [id])
+  original_filename          String
+  source_interface           String?  // ChatGPT, WebApp
+  upload_batch_id            String?
+  mime_type                  String?
+  page_count                 Int?
+  file_storage_path          String
+  extracted_text_path        String?
+  rendered_image_path_prefix String?
+  checksum                   String?
+  uploaded_at                DateTime @default(now())
+  replaced_by_file_id        String?
+  is_active                  Boolean  @default(true)
+
+  registryRecords            DocumentRegistry[]
+  evidenceRecords            EvidenceRecord[]
+}
+
+model DocumentRegistry {
+  id                    String   @id @default(uuid())
+  project_id            String
+  project               Project  @relation(fields: [project_id], references: [id])
+  file_id               String
+  file                  FileAsset @relation(fields: [file_id], references: [id])
+  document_type         String?
+  discipline            String?
+  relevance_to_mgs      String?
+  confidence            Float?
+  likely_relevant_pages String?
+  likely_noise_pages    String?
+  notes                 String?
+  extracted_at          DateTime @default(now())
+}
+
+model EvidenceRecord {
+  id                       String   @id @default(uuid())
+  evidence_id              String?  @unique // Action-provided ID
+  project_id               String
+  project                  Project  @relation(fields: [project_id], references: [id])
+  document_id              String
+  file                     FileAsset @relation(fields: [document_id], references: [id])
+  page_number              Int?
+  evidence_type            String?
+  excerpt_text             String?
+  explanation              String?
+  related_item_id          String?
+  confidence               Float?
+}
+
+model MillworkItem {
+  id                         String   @id @default(uuid())
+  project_id                 String
+  project                    Project  @relation(fields: [project_id], references: [id])
+  parent_item_id             String?
+  item_name                  String
+  room_area                  String?
+  tags                       String? // comma-separated or JSON
+  scope_description          String?
+  finish_codes               String?
+  confidence                 Float?
+  evidence_refs              String? // comma-separated evidence_ids
+  review_status              String   @default("Pending")
+  user_locked                Boolean  @default(false)
+  visible_in_client_estimate Boolean  @default(true)
+  sort_order                 Int      @default(0)
+
+  estimateRows               EstimateRow[]
+}
+
+model FinishScheduleItem {
+  id                String   @id @default(uuid())
+  project_id        String
+  project           Project  @relation(fields: [project_id], references: [id])
+  finish_code       String
+  material_category String?
+  material_name     String?
+  description       String?
+  areas_used        String?
+  unit_type         String?
+  unit_cost         Float?
+  vendor_placeholder String?
+  notes             String?
+  confidence        Float?
+  linked_item_ids   String?
+}
+
+model EstimateRow {
+  id                    String   @id @default(uuid())
+  project_id            String
+  project               Project  @relation(fields: [project_id], references: [id])
+  linked_item_id        String?
+  millworkItem          MillworkItem? @relation(fields: [linked_item_id], references: [id])
+  parent_estimate_row_id String?
+  row_label             String
+  sow_text              String?
+  material_cost         Float    @default(0)
+  hardware_cost         Float    @default(0)
+  design_hours          Float    @default(0)
+  fabrication_headcount Float?
+  fabrication_hours_each Float?
+  install_headcount     Float?
+  install_hours_each    Float?
+  fabrication_cost      Float    @default(0)
+  installation_cost     Float    @default(0)
+  item_unit_price       Float    @default(0)
+  quantity              Float    @default(1)
+  line_total            Float    @default(0)
+  misc_cost_placeholder Float    @default(0)
+  misc_notes            String?
+  subcontractor_flag    Boolean  @default(false)
+  pricing_method        String?
+  overhead_included_flag Boolean  @default(false)
+  tax_applicable_flag   Boolean  @default(false)
+  manual_override_flag  Boolean  @default(false)
+  lock_calculation_flag Boolean  @default(false)
+
+  material_breakdown    MaterialBreakdown[]
+  subcontractorBlocks   SubcontractorBlock[]
+}
+
+model MaterialBreakdown {
+  id                String      @id @default(uuid())
+  estimate_row_id   String
+  estimateRow       EstimateRow @relation(fields: [estimate_row_id], references: [id])
+  finish_code       String
+  quantity          Float
+  basis_note        String?
+}
+
+model SubcontractorBlock {
+  id                String   @id @default(uuid())
+  estimate_row_id   String
+  estimateRow       EstimateRow @relation(fields: [estimate_row_id], references: [id])
+  subcontract_type  String? // countertop_stone, glass, etc.
+  material_subcost  Float    @default(0)
+  fabricate_subcost Float    @default(0)
+  install_subcost   Float    @default(0)
+  supplier_name     String?
+  quote_reference   String?
+  notes             String?
+}
+
+model ClientPresentationRow {
+  id                      String   @id @default(uuid())
+  project_id              String
+  project                 Project  @relation(fields: [project_id], references: [id])
+  source_estimate_row_ids String?
+  display_label           String
+  display_sow             String?
+  display_price           Float?
+  display_order           Int      @default(0)
+  template_visibility_rule String?
+  group_name              String?
+  render_style            String?
+}
+
+model ReviewFlag {
+  id                String   @id @default(uuid())
+  flag_id           String?  @unique // Action-provided ID
+  project_id        String
+  project           Project  @relation(fields: [project_id], references: [id])
+  related_item_id   String?
+  category          String?
+  severity          String?
+  message           String?
+  suggested_action  String?
+  evidence_refs     String? // comma-separated evidence_ids
+  resolved_flag     Boolean  @default(false)
+  created_at        DateTime @default(now())
+  resolved_at       DateTime?
+}
+
+model Comment {
+  id                 String   @id @default(uuid())
+  project_id         String
+  project            Project  @relation(fields: [project_id], references: [id])
+  linked_entity_type  String?
+  linked_entity_id    String?
+  user_comment       String
+  request_type       String?
+  status             String?
+  response_summary   String?
+  created_at         DateTime @default(now())
+}
+
+model VersionSnapshot {
+  id                          String   @id @default(uuid())
+  project_id                  String
+  project                     Project  @relation(fields: [project_id], references: [id])
+  snapshot_type               String?
+  created_at                  DateTime @default(now())
+  created_by                  String?
+  changed_entities_summary    String?
+  snapshot_payload_reference  String?
+}
+

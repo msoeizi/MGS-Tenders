@@ -1,0 +1,33 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: 'placeholder'
+          if_key_exists: replace
+
+      - name: Adding Known Hosts
+        run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy with SSH
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            cd /var/www/mgs-tender-automation &&
+            git pull origin main &&
+            npm install &&
+            npx prisma generate &&
+            npm run build &&
+            pm2 restart mgs-tenders || pm2 start npm --name 'mgs-tenders' -- start -- -p 3232
+          "

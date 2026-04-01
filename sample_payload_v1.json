@@ -1,0 +1,146 @@
+{
+  "project_info": {
+    "project_title": "Hospitality Renovation - Phase 1",
+    "project_address": "123 Main St, Toronto",
+    "project_description": "High-end lobby renovation including custom reception desk and guestroom vanities.",
+    "project_type": "retail retrofit",
+    "scope_classification": "supply_and_install",
+    "distance_from_47_geraldton": "14.2 km"
+  },
+  "project_contacts": [
+    {
+      "company": "SJ Design Group",
+      "contact_name": "Sarah Jenkins",
+      "email": "sarah@sjdesign.com",
+      "phone_number": "416-555-0123",
+      "category": "interior_designer"
+    },
+    {
+      "company": "BuildRight GC",
+      "contact_name": "Mike Ross",
+      "email": "mike@buildright.ca",
+      "phone_number": "416-555-0199",
+      "category": "general_contractor"
+    }
+  ],
+  "millwork_schedule": [
+    {
+      "item_id": "MW-01",
+      "item_name": "Reception Desk",
+      "room_area": "Lobby 101",
+      "tags": "custom, stone-top",
+      "scope_description": "Custom reception desk with stone top and laminate body as per detail I-501.",
+      "finish_codes": "PL-1, SS-1",
+      "confidence": 0.98,
+      "evidence_refs": "EV-001"
+    },
+    {
+      "item_id": "MW-02",
+      "item_name": "Guestroom Vanity",
+      "room_area": "Rooms 201-215",
+      "tags": "replicated, wood-veneer",
+      "scope_description": "Wall-mounted vanities (15 qty) with quartz tops as per detail I-602.",
+      "finish_codes": "WD-1, QZ-1",
+      "confidence": 0.95,
+      "evidence_refs": "EV-002"
+    }
+  ],
+  "finish_schedule": [
+    {
+      "finish_code": "PL-1",
+      "material_name": "Wilsonart Designer White, Matte Finish",
+      "material_category": "Laminate",
+      "unit_type": "sqft",
+      "unit_cost": 12.50,
+      "notes": "Used for MW-01 Body"
+    },
+    {
+      "finish_code": "SS-1",
+      "material_name": "Corian Arctic Ice, 20mm Solid Surface",
+      "material_category": "Stone",
+      "unit_type": "sqft",
+      "unit_cost": 45.00,
+      "notes": "Used for MW-01 Top"
+    },
+    {
+      "finish_code": "WD-1",
+      "material_name": "Walnut Veneer, Natural Finish",
+      "material_category": "Wood",
+      "unit_type": "sqft",
+      "unit_cost": 18.00,
+      "notes": "Used for MW-02 Body"
+    },
+    {
+      "finish_code": "QZ-1",
+      "material_name": "Caesarstone London Grey, 20mm Quartz",
+      "material_category": "Stone",
+      "unit_type": "sqft",
+      "unit_cost": 65.00,
+      "notes": "Used for MW-02 Top"
+    }
+  ],
+  "estimate_prefill": [
+    {
+      "item_id": "MW-01",
+      "row_label": "Lobby Reception Desk",
+      "hardware_cost": 450.00,
+      "design_hours": 8.0,
+      "fabrication_headcount": 2.0,
+      "fabrication_hours_each": 12.0,
+      "install_headcount": 2.0,
+      "install_hours_each": 4.0,
+      "misc_cost_placeholder": 100.0,
+      "subcontractor_flag": false,
+      "material_breakdown": [
+        { "finish_code": "PL-1", "quantity": 48.0, "basis_note": "Based on panel optimization" },
+        { "finish_code": "SS-1", "quantity": 24.0, "basis_note": "Countertop area" }
+      ]
+    },
+    {
+      "item_id": "MW-02",
+      "row_label": "Guestroom Vanity (15 Units)",
+      "quantity": 15.0,
+      "hardware_cost": 120.00,
+      "design_hours": 4.0,
+      "fabrication_headcount": 1.0,
+      "fabrication_hours_each": 4.0,
+      "install_headcount": 1.0,
+      "install_hours_each": 2.0,
+      "misc_cost_placeholder": 50.0,
+      "subcontractor_flag": false,
+      "material_breakdown": [
+        { "finish_code": "WD-1", "quantity": 12.0, "basis_note": "Per unit" },
+        { "finish_code": "QZ-1", "quantity": 6.0, "basis_note": "Per unit" }
+      ]
+    }
+  ],
+  "review_flags": [
+    {
+      "flag_id": "FLG-001",
+      "related_item_id": "MW-01",
+      "category": "scope_gap",
+      "severity": "high",
+      "message": "Contradictory Scope Found: Detail A3 says \"Install by GC\" but Note 4 in Specs says \"Contractor to supply/install\".",
+      "suggested_action": "Verify with GC during site visit or RFI.",
+      "evidence_refs": "EV-001"
+    }
+  ],
+  "evidence_index": [
+    {
+      "evidence_id": "EV-001",
+      "document_id": "I-501",
+      "page_number": 2,
+      "evidence_type": "drawing_note",
+      "excerpt_text": "Note 4: All lobby millwork to be S&I by millwork contractor.",
+      "explanation": "Confirms supply and install responsibility for the lobby area."
+    },
+    {
+      "evidence_id": "EV-002",
+      "document_id": "I-602",
+      "page_number": 5,
+      "evidence_type": "drawing_detail",
+      "excerpt_text": "Detail 5/I-602 shows wall-mounted vanity configuration.",
+      "explanation": "Source for MW-02 configuration and material specs."
+    }
+  ]
+}
