@@ -46,9 +46,29 @@ export default function Home() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <h1 className="page-title" style={{ margin: 0 }}>Active Projects</h1>
-            <span className="badge badge-success" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
-              ● System Online
+            <span className="badge badge-success" style={{ 
+              fontSize: '0.7rem', 
+              padding: '0.2rem 0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              animation: 'pulse 2s infinite'
+            }}>
+              <span style={{ 
+                width: '6px', 
+                height: '6px', 
+                borderRadius: '50%', 
+                backgroundColor: 'currentColor' 
+              }}></span>
+              System Online
             </span>
+            <style jsx>{`
+              @keyframes pulse {
+                0% { opacity: 1; }
+                50% { opacity: 0.6; }
+                100% { opacity: 1; }
+              }
+            `}</style>
           </div>
           <p className="page-subtitle">Track and manage your millwork tender estimates.</p>
         </div>
