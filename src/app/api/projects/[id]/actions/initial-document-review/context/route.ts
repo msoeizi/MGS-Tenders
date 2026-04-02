@@ -24,6 +24,11 @@ export async function GET(
       return NextResponse.json({ error: `Project not found: ${project_id}` }, { status: 404 });
     }
 
+    // 1. Determine the base URL dynamically from the request headers
+    const host = req.headers.get('host') || 'localhost:3232';
+    const protocol = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+    const baseUrl = `${protocol}://${host}`;
+
     // Prepare documents context
     const documents = project.fileAssets.map((file: any) => {
       let extracted_text: string | null = null;
@@ -39,13 +44,13 @@ export async function GET(
       }
 
       const page_image_urls = file.rendered_image_path_prefix 
-        ? [1, 2, 3].map(p => `${file.rendered_image_path_prefix}_page_${p}.jpg`)
+        ? [1, 2, 3].map(p => `${baseUrl}/api/storage/${file.rendered_image_path_prefix}_page_${p}.jpg`)
         : [];
 
       return {
         document_id: file.id,
         document_title: file.original_filename,
-        file_download_url: `${req.nextUrl.origin}/${file.file_storage_path}`,
+        file_download_url: `${baseUrl}/api/storage/${file.file_storage_path}`,
         extracted_text: extracted_text,
         page_map: null,
         page_image_urls: page_image_urls,

@@ -17,7 +17,7 @@ export async function POST(
       return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), 'public', 'storage', `project_${project_id}`);
+    const uploadDir = path.join(process.cwd(), 'storage', `project_${project_id}`);
     await fs.mkdir(uploadDir, { recursive: true });
 
     const createdAssets = [];
@@ -35,7 +35,7 @@ export async function POST(
         data: {
           project_id,
           original_filename: fileName,
-          file_storage_path: `storage/project_${project_id}/${fileName}`,
+          file_storage_path: `project_${project_id}/${fileName}`, // Relative to 'storage' root
           mime_type: file.type,
           source_interface: 'WebApp',
           is_active: true
