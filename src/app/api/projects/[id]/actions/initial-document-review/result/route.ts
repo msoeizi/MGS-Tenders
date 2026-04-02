@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logApiCommunication } from '@/lib/api-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,9 +9,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: project_id } = await params;
+  let payload: any;
   
   try {
-    const payload = await req.json();
+    payload = await req.json();
     const mode = payload.mode || 'replace';
     
     const {
@@ -22,6 +24,28 @@ export async function POST(
       review_flags,
       evidence_index
     } = payload;
+
+    // VALIDATION: Reject empty/meaningless submissions
+    const hasMillwork = millwork_schedule && millwork_schedule.length > 0;
+    const hasFinish = finish_schedule && finish_schedule.length > 0;
+    const hasEvidence = evidence_index && evidence_index.length > 0;
+    const hasFlags = review_flags && review_flags.length > 0;
+    const hasBasicInfo = project_info && project_info.project_title && project_info.project_title.length > 3;
+
+    if (!hasMillwork && !hasFinish && !hasEvidence && !hasFlags && !hasBasicInfo) {
+      const errorMsg = "Empty initial_document_review result rejected: no analyzable output was submitted.";
+      
+      await logApiCommunication(
+        project_id,
+        '/actions/initial-document-review/result',
+        'POST',
+        payload,
+        { error: errorMsg },
+        400
+      );
+
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
+    }
 
     const result = await prisma.$transaction(async (tx: any) => {
       // 1. Update Project basic info
@@ -112,8 +136,6 @@ export async function POST(
         }
         for (const row of estimate_prefill) {
           const { material_breakdown, item_id, ...rowData } = row;
-          
-          // Link to millwork item if item_id was provided and mapped
           const linked_item_id = item_id ? millwork_id_map[item_id] : null;
 
           const createdRow = await tx.estimateRow.create({
@@ -139,12 +161,11 @@ export async function POST(
       if (evidence_index) {
         for (const ev of evidence_index) {
           const { evidence_id, document_id, ...evData } = ev;
-          // Note: document_id in payload refers to FileAsset.id
           await tx.evidenceRecord.upsert({
             where: { evidence_id: evidence_id || '' },
             update: { 
               ...evData, 
-              document_id: document_id, // Map payload document_id to schema document_id (FileAsset)
+              document_id: document_id,
               project_id 
             },
             create: { 
@@ -161,8 +182,6 @@ export async function POST(
       if (review_flags) {
         for (const flag of review_flags) {
           const { flag_id, related_item_id, ...flagData } = flag;
-          
-          // Map related_item_id to Prisma ID if it exists in our map
           const prisma_related_id = related_item_id ? millwork_id_map[related_item_id] : related_item_id;
 
           await tx.reviewFlag.upsert({
@@ -185,9 +204,30 @@ export async function POST(
       return { success: true, mode_applied: mode, millwork_count: millwork_schedule?.length || 0 };
     });
 
+    // LOG SUCCESSFUL COMMUNICATION
+    await logApiCommunication(
+      project_id,
+      '/actions/initial-document-review/result',
+      'POST',
+      payload,
+      result,
+      200
+    );
+
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Action Ingestion Error:', error);
+    
+    // Log failure
+    await logApiCommunication(
+      project_id,
+      '/actions/initial-document-review/result',
+      'POST',
+      payload || {},
+      { error: error.message },
+      500
+    );
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -35,6 +35,7 @@ model Project {
   reviewFlags           ReviewFlag[]
   comments              Comment[]
   versionSnapshots      VersionSnapshot[]
+  apiLogs               ApiLog[]
 }
 
 model Contact {
@@ -246,4 +247,14 @@ model VersionSnapshot {
   changed_entities_summary    String?
   snapshot_payload_reference  String?
 }
-
+model ApiLog {
+  id              String   @id @default(uuid())
+  project_id      String
+  project         Project  @relation(fields: [project_id], references: [id])
+  endpoint        String
+  method          String
+  request_body    String?  // JSON string
+  response_body   String?  // JSON string
+  status_code     Int?
+  created_at      DateTime @default(now())
+}

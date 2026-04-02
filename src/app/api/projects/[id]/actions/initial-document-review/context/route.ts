@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import fs from 'fs';
 import path from 'path';
+import { logApiCommunication } from '@/lib/api-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,6 @@ export async function GET(
       let extracted_text: string | null = null;
       if (file.extracted_text_path) {
         try {
-          // Assume path is relative to project root
           const fullPath = path.resolve(process.cwd(), file.extracted_text_path);
           if (fs.existsSync(fullPath)) {
             extracted_text = fs.readFileSync(fullPath, 'utf8');
@@ -38,16 +38,16 @@ export async function GET(
         }
       }
 
-      // Generate best-effort page image URLs (if prefix exists)
       const page_image_urls = file.rendered_image_path_prefix 
-        ? [1, 2, 3].map(p => `${file.rendered_image_path_prefix}_page_${p}.jpg`) // Placeholder for first 3 pages
+        ? [1, 2, 3].map(p => `${file.rendered_image_path_prefix}_page_${p}.jpg`)
         : [];
 
       return {
         document_id: file.id,
         document_title: file.original_filename,
+        file_download_url: `${req.nextUrl.origin}/${file.file_storage_path}`,
         extracted_text: extracted_text,
-        page_map: null, // Placeholder as per logic (return null if not pre-generated)
+        page_map: null,
         page_image_urls: page_image_urls,
         upload_phase: file.upload_batch_id || "initial"
       };
@@ -66,9 +66,32 @@ export async function GET(
       }
     };
 
+    // LOG COMMUNICATION
+    await logApiCommunication(
+      project.id,
+      '/actions/initial-document-review/context',
+      'GET',
+      null, // No request body for GET
+      response,
+      200
+    );
+
     return NextResponse.json(response);
   } catch (error: any) {
     console.error('Context Endpoint Error:', error);
+    
+    // Log failure if we have a project ID
+    if (project_id) {
+       await logApiCommunication(
+        project_id,
+        '/actions/initial-document-review/context',
+        'GET',
+        null,
+        { error: error.message },
+        500
+      );
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

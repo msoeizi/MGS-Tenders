@@ -9,6 +9,7 @@ import EstimateTab from '@/components/workspace/EstimateTab';
 import ReviewFlagsTab from '@/components/workspace/ReviewFlagsTab';
 import EvidenceTab from '@/components/workspace/EvidenceTab';
 import DocumentsTab from '@/components/workspace/DocumentsTab';
+import { CommunicationLogTab } from '@/components/workspace/CommunicationLogTab';
 
 export default function ProjectWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -88,6 +89,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
     { id: 'estimate', name: 'Estimate Prefill', icon: '💰' },
     { id: 'flags', name: 'Review Flags', icon: '🚩' },
     { id: 'evidence', name: 'Evidence Index', icon: '🔍' },
+    { id: 'logs', name: 'System Logs', icon: '📟' },
   ];
 
   const handleUpload = (newAssets: any[]) => {
@@ -115,6 +117,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         return <ReviewFlagsTab flags={project.reviewFlags} onUpdate={(data) => handleUpdate('reviewFlags', data)} onViewEvidence={() => setActiveTab('evidence')} />;
       case 'evidence':
         return <EvidenceTab evidence={project.evidenceRecords} onUpdate={(data) => handleUpdate('evidenceRecords', data)} />;
+      case 'logs':
+        return <CommunicationLogTab projectId={id} />;
       default:
         return null;
     }
