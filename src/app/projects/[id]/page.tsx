@@ -14,6 +14,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const [activeTab, setActiveTab] = useState('project_info');
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   // Fetch project data ONCE on mount
   useEffect(() => {
@@ -40,6 +41,13 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
     
     // In a real implementation, we would call the API here:
     // await fetch(`/api/projects/${id}/${section}`, { method: 'PATCH', body: JSON.stringify(data) });
+  };
+
+  const copyPrompt = () => {
+    const prompt = `Run initial_document_review for project ${id}`;
+    navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Loading project...</div>;
@@ -78,9 +86,30 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <header className="page-header" style={{ marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '2rem', color: 'var(--primary)' }}>Workspace: {project.project_title}</h1>
-        <p style={{ color: 'var(--secondary)' }}>{project.project_address}</p>
+      <header className="page-header" style={{ 
+        marginBottom: '1rem', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start' 
+      }}>
+        <div>
+          <h1 style={{ fontSize: '2rem', color: 'var(--primary)' }}>Workspace: {project.project_title}</h1>
+          <p style={{ color: 'var(--secondary)' }}>{project.project_address}</p>
+        </div>
+        <button 
+          onClick={copyPrompt}
+          className="btn btn-primary"
+          style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)',
+            border: 'none',
+            boxShadow: 'var(--shadow-glow)'
+          }}
+        >
+          <span>{copied ? '✅' : '✨'}</span> 
+          {copied ? 'Copied to Clipboard!' : 'Copy GPT Prompt'}
+        </button>
       </header>
 
       <nav style={{ 

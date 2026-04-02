@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
+import fs from 'fs';
+import path from 'path';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
@@ -17,18 +20,38 @@ export async function GET(
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: `Project not found: ${project_id}` }, { status: 404 });
     }
 
     // Prepare documents context
-    const documents = project.fileAssets.map(file => ({
-      document_id: file.id,
-      document_title: file.original_filename,
-      extracted_text: file.extracted_text_path ? "Text extraction available on request" : null, // Placeholder or actual text
-      page_map: null, // Placeholder for future enhancement
-      page_image_urls: file.rendered_image_path_prefix ? [`${file.rendered_image_path_prefix}_page_1.jpg`] : [],
-      upload_phase: "initial"
-    }));
+    const documents = project.fileAssets.map((file: any) => {
+      let extracted_text: string | null = null;
+      if (file.extracted_text_path) {
+        try {
+          // Assume path is relative to project root
+          const fullPath = path.resolve(process.cwd(), file.extracted_text_path);
+          if (fs.existsSync(fullPath)) {
+            extracted_text = fs.readFileSync(fullPath, 'utf8');
+          }
+        } catch (err) {
+          console.warn(`Could not read extracted text for ${file.id}:`, err);
+        }
+      }
+
+      // Generate best-effort page image URLs (if prefix exists)
+      const page_image_urls = file.rendered_image_path_prefix 
+        ? [1, 2, 3].map(p => `${file.rendered_image_path_prefix}_page_${p}.jpg`) // Placeholder for first 3 pages
+        : [];
+
+      return {
+        document_id: file.id,
+        document_title: file.original_filename,
+        extracted_text: extracted_text,
+        page_map: null, // Placeholder as per logic (return null if not pre-generated)
+        page_image_urls: page_image_urls,
+        upload_phase: file.upload_batch_id || "initial"
+      };
+    });
 
     const response = {
       project_id: project.id,
