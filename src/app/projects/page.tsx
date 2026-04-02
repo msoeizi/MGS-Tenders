@@ -11,7 +11,25 @@ const mockProjects = [
 ];
 
 export default function ProjectsList() {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  async function fetchProjects() {
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      setProjects(data);
+    } catch (err) {
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useState(() => {
+    fetchProjects();
+  });
 
   return (
     <>
@@ -25,40 +43,51 @@ export default function ProjectsList() {
 
       <NewProjectModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => {
+          setIsModalOpen(false);
+          fetchProjects(); // Refresh list after modal closes
+        }} 
       />
 
       <div className="glass-panel animate-slide-up">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--surface-border)', color: 'var(--secondary)' }}>
-              <th style={{ padding: '1rem' }}>Project Name</th>
-              <th style={{ padding: '1rem' }}>Address</th>
-              <th style={{ padding: '1rem' }}>Status</th>
-              <th style={{ padding: '1rem' }}>Classification</th>
-              <th style={{ padding: '1rem' }}>Last Updated</th>
-              <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mockProjects.map(p => (
-              <tr key={p.id} style={{ borderBottom: '1px solid rgba(158, 103, 38, 0.05)' }}>
-                <td style={{ padding: '1rem', fontWeight: '600' }}>{p.project_title}</td>
-                <td style={{ padding: '1rem', color: 'var(--secondary)' }}>{p.project_address}</td>
-                <td style={{ padding: '1rem' }}>
-                  <span className={`badge ${p.project_status === 'Triaged' ? 'badge-success' : 'badge-info'}`}>
-                    {p.project_status}
-                  </span>
-                </td>
-                <td style={{ padding: '1rem', fontWeight: '500', color: 'var(--primary)' }}>{p.scope_classification}</td>
-                <td style={{ padding: '1rem', color: 'var(--secondary)' }}>{p.updated}</td>
-                <td style={{ padding: '1rem', textAlign: 'right' }}>
-                  <Link href={`/projects/${p.id}`} className="btn btn-ghost">Workspace</Link>
-                </td>
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center' }}>Loading projects...</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--surface-border)', color: 'var(--secondary)' }}>
+                <th style={{ padding: '1rem' }}>Project Name</th>
+                <th style={{ padding: '1rem' }}>Address</th>
+                <th style={{ padding: '1rem' }}>Status</th>
+                <th style={{ padding: '1rem' }}>Files</th>
+                <th style={{ padding: '1rem' }}>Created</th>
+                <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {projects.map((p: any) => (
+                <tr key={p.id} style={{ borderBottom: '1px solid rgba(158, 103, 38, 0.05)' }}>
+                  <td style={{ padding: '1rem', fontWeight: '600' }}>{p.project_title}</td>
+                  <td style={{ padding: '1rem', color: 'var(--secondary)' }}>{p.project_address}</td>
+                  <td style={{ padding: '1rem' }}>
+                    <span className={`badge ${p.project_status === 'Draft' ? 'badge-info' : 'badge-success'}`}>
+                      {p.project_status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem', fontWeight: '500', color: 'var(--primary)' }}>
+                    {p._count?.fileAssets || 0} docs
+                  </td>
+                  <td style={{ padding: '1rem', color: 'var(--secondary)' }}>
+                    {new Date(p.created_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'right' }}>
+                    <Link href={`/projects/${p.id}`} className="btn btn-ghost">Workspace</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );

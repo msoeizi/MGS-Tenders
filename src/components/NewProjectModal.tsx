@@ -45,25 +45,38 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  useEffect(() => {
-    if (step === 'analyzing') {
+  const handleStartAnalysis = async () => {
+    setStep('analyzing');
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          address: formData.address,
+          files: selectedFiles.map(f => f.name)
+        })
+      });
+      const newProject = await res.json();
+      
+      // Simulate analysis progress before redirecting to real ID
+      let currentProgress = 0;
       const timer = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(timer);
-            // Simulate completion and redirect
-            setTimeout(() => {
-              router.push('/projects/1'); // Redirect to a mock project
-              onClose();
-            }, 500);
-            return 100;
-          }
-          return prev + 2;
-        });
-      }, 100);
-      return () => clearInterval(timer);
+        currentProgress += 2;
+        setProgress(currentProgress);
+        if (currentProgress >= 100) {
+          clearInterval(timer);
+          setTimeout(() => {
+            router.push(`/projects/${newProject.id}`);
+            onClose();
+          }, 500);
+        }
+      }, 50);
+    } catch (err) {
+      console.error('Project creation error:', err);
+      setStep('form');
     }
-  }, [step, router, onClose]);
+  };
 
   if (!isOpen) return null;
 
@@ -138,7 +151,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
               <button 
                 className="btn btn-primary" 
                 disabled={!formData.title || selectedFiles.length === 0}
-                onClick={() => setStep('analyzing')}
+                onClick={handleStartAnalysis}
               >
                 Start AI Analysis
               </button>

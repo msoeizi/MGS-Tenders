@@ -9,8 +9,18 @@ export async function GET(
   const { id: project_id } = await params;
   
   try {
+    let whereClause: any = { id: project_id };
+    
+    // Support alias '1' for testing latest project
+    if (project_id === '1') {
+      const latest = await prisma.project.findFirst({
+        orderBy: { created_at: 'desc' }
+      });
+      if (latest) whereClause = { id: latest.id };
+    }
+
     const project = await prisma.project.findUnique({
-      where: { id: project_id },
+      where: whereClause,
       include: {
         contacts: true,
         millworkItems: true,
@@ -22,6 +32,7 @@ export async function GET(
         },
         reviewFlags: true,
         evidenceRecords: true,
+        fileAssets: true, // Explicitly include fileAssets
       }
     });
 
