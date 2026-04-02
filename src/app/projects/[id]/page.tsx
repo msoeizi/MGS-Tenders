@@ -8,6 +8,7 @@ import FinishesTab from '@/components/workspace/FinishesTab';
 import EstimateTab from '@/components/workspace/EstimateTab';
 import ReviewFlagsTab from '@/components/workspace/ReviewFlagsTab';
 import EvidenceTab from '@/components/workspace/EvidenceTab';
+import DocumentsTab from '@/components/workspace/DocumentsTab';
 
 export default function ProjectWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -15,6 +16,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Fetch project data ONCE on mount
   useEffect(() => {
@@ -31,6 +34,29 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
     }
     fetchProject();
   }, [id]);
+
+  // Debounced Auto-save Logic
+  useEffect(() => {
+    if (!project || loading) return;
+
+    const saveTimer = setTimeout(async () => {
+      setSaving(true);
+      try {
+        await fetch(`/api/projects/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(project)
+        });
+        setLastSaved(new Date());
+      } catch (err) {
+        console.error('Auto-save error:', err);
+      } finally {
+        setSaving(false);
+      }
+    }, 1000);
+
+    return () => clearTimeout(saveTimer);
+  }, [project, id, loading]);
 
   const handleUpdate = async (section: string, data: any) => {
     // For now, log the intended update - in a real app, this would be a PATCH to /api/projects/[id]/[section]
@@ -56,12 +82,20 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const tabs = [
     { id: 'project_info', name: 'Project Info', icon: '📝' },
     { id: 'contacts', name: 'Contacts', icon: '👥' },
+    { id: 'documents', name: 'Documents', icon: '📂' },
     { id: 'millwork', name: 'Millwork Schedule', icon: '🪑' },
     { id: 'finishes', name: 'Finish Schedule', icon: '🎨' },
     { id: 'estimate', name: 'Estimate Prefill', icon: '💰' },
     { id: 'flags', name: 'Review Flags', icon: '🚩' },
-    { id: 'evidence', name: 'Evidence Index', icon: '📁' },
+    { id: 'evidence', name: 'Evidence Index', icon: '🔍' },
   ];
+
+  const handleUpload = (newAssets: any[]) => {
+    setProject((prev: any) => ({
+      ...prev,
+      fileAssets: [...(prev.fileAssets || []), ...newAssets]
+    }));
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -69,6 +103,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         return <ProjectInfoTab project={project} onUpdate={(data) => handleUpdate('project_info', data)} />;
       case 'contacts':
         return <ContactsTab contacts={project.contacts} onUpdate={(data) => handleUpdate('contacts', data)} />;
+      case 'documents':
+        return <DocumentsTab project={project} onUpload={handleUpload} />;
       case 'millwork':
         return <MillworkTab items={project.millworkItems} onUpdate={(data) => handleUpdate('millworkItems', data)} onViewEvidence={() => setActiveTab('evidence')} />;
       case 'finishes':
@@ -94,7 +130,18 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
       }}>
         <div>
           <h1 style={{ fontSize: '2rem', color: 'var(--primary)' }}>Workspace: {project.project_title}</h1>
-          <p style={{ color: 'var(--secondary)' }}>{project.project_address}</p>
+          <p style={{ color: 'var(--secondary)' }}>
+            {project.project_address} 
+            {saving ? (
+              <span style={{ marginLeft: '1rem', color: 'var(--accent)', fontSize: '0.75rem', fontWeight: '600' }}>
+                ● SAVING CHANGES...
+              </span>
+            ) : lastSaved ? (
+              <span style={{ marginLeft: '1rem', color: 'var(--success)', fontSize: '0.75rem', fontWeight: '500' }}>
+                ✓ SAVED {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            ) : null}
+          </p>
         </div>
         <button 
           onClick={copyPrompt}

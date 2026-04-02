@@ -12,22 +12,15 @@ async function test() {
   console.log('GET Status:', getRes.status);
   console.log('GET Response:', JSON.stringify(getData, null, 2));
 
-  console.log('\nTesting POST result...');
-  const payload = JSON.parse(fs.readFileSync('sample_payload_v1.json', 'utf8'));
-  
-  // Patch payload with real document_id from seed
-  if (payload.evidence_index) {
-    payload.evidence_index.forEach(ev => ev.document_id = 'test-doc-001');
-  }
-
-  const postRes = await fetch(postUrl, {
-    method: 'POST',
+  console.log('\nTesting Auto-save (PATCH)...');
+  const patchRes = await fetch(getUrl.replace('/actions/initial-document-review/context', ''), {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({ project_title: 'Updated Project Title', project_address: 'New Address' })
   });
-  const postData = await postRes.json();
-  console.log('POST Status:', postRes.status);
-  console.log('POST Response:', JSON.stringify(postData, null, 2));
+  const patchData = await patchRes.json();
+  console.log('PATCH Status:', patchRes.status);
+  console.log('PATCH Response:', JSON.stringify(patchData, null, 2));
 }
 
 test().catch(console.error);
