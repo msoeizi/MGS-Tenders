@@ -44,7 +44,12 @@ export default function Home() {
     <>
       <header className="page-header">
         <div>
-          <h1 className="page-title">Active Projects</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <h1 className="page-title" style={{ margin: 0 }}>Active Projects</h1>
+            <span className="badge badge-success" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
+              ● System Online
+            </span>
+          </div>
           <p className="page-subtitle">Track and manage your millwork tender estimates.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
