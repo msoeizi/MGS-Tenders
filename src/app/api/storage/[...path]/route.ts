@@ -7,33 +7,47 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: pathSegments } = await params;
-  let segments = pathSegments;
   
-  // 1. Handle cases where 'storage' is redundantly included in the URL
-  if (segments[0] === 'storage') {
-    segments = segments.slice(1);
+  // 1. Join segments and normalize
+  let relativePath = pathSegments.join('/');
+  
+  // 2. Be extremely aggressive about removing leading 'storage/' segments
+  // to prevent double concatenation if the DB path already includes it.
+  while (relativePath.startsWith('storage/')) {
+    relativePath = relativePath.substring(8);
+  }
+  while (relativePath.startsWith('/')) {
+    relativePath = relativePath.substring(1);
+  }
+  
+  // 3. Define all possible root locations to check
+  const cwd = process.cwd();
+  const rootsToTry = [
+    path.join(cwd, 'storage'),           // Root storage
+    path.join(cwd, 'public', 'storage'),  // Legacy public storage
+    cwd                                   // Root (in case path is absolute/full)
+  ];
+
+  let filePath = '';
+  let found = false;
+
+  for (const root of rootsToTry) {
+    const candidate = path.join(root, relativePath);
+    if (fs.existsSync(candidate) && fs.lstatSync(candidate).isFile()) {
+      filePath = candidate;
+      found = true;
+      break;
+    }
   }
 
-  const relativePath = segments.join('/');
-  
-  // 2. Security: Prevent directory traversal
-  if (relativePath.includes('..') || relativePath.startsWith('/') || relativePath.startsWith('\\')) {
-    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
-  }
-
-  // 3. Define possible storage locations (Persistent vs Legacy Public)
-  const storageRoot = path.join(process.cwd(), 'storage');
-  const publicStorageRoot = path.join(process.cwd(), 'public', 'storage');
-  
-  let filePath = path.join(storageRoot, relativePath);
-
-  // 4. Fallback to public storage if not found in root storage
-  if (!fs.existsSync(filePath)) {
-    filePath = path.join(publicStorageRoot, relativePath);
-  }
-
-  if (!fs.existsSync(filePath)) {
-    return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  // 4. Final check with better error message
+  if (!found) {
+    const triedPaths = rootsToTry.map(r => path.join(r, relativePath)).join('\n');
+    console.error(`File not found: ${relativePath}. Tried:\n${triedPaths}`);
+    return new NextResponse(
+      `File not found: ${relativePath}. \n\nChecked locations:\n${triedPaths}`,
+      { status: 404 }
+    );
   }
 
   try {
