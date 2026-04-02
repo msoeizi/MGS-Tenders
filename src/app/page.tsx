@@ -97,7 +97,7 @@ export default function Home() {
                   {project.project_status}
                 </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>
-                {project.updated}
+                {/* Verified CI/CD Handshake - Native Linux PEM Key */}
               </span>
             </div>
 
