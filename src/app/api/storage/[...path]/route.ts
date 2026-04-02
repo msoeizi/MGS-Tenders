@@ -7,20 +7,31 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: pathSegments } = await params;
+  let segments = pathSegments;
   
-  // 1. Construct the relative path from the segments
-  const relativePath = pathSegments.join('/');
+  // 1. Handle cases where 'storage' is redundantly included in the URL
+  if (segments[0] === 'storage') {
+    segments = segments.slice(1);
+  }
+
+  const relativePath = segments.join('/');
   
   // 2. Security: Prevent directory traversal
   if (relativePath.includes('..') || relativePath.startsWith('/') || relativePath.startsWith('\\')) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
   }
 
-  // 3. Define the physical storage root (project root/storage)
+  // 3. Define possible storage locations (Persistent vs Legacy Public)
   const storageRoot = path.join(process.cwd(), 'storage');
-  const filePath = path.join(storageRoot, relativePath);
+  const publicStorageRoot = path.join(process.cwd(), 'public', 'storage');
+  
+  let filePath = path.join(storageRoot, relativePath);
 
-  // 4. Check if file exists
+  // 4. Fallback to public storage if not found in root storage
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(publicStorageRoot, relativePath);
+  }
+
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
