@@ -57,29 +57,36 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
 
       const res = await fetch('/api/projects', {
         method: 'POST',
-        // Note: fetch automatically sets the correct Content-Type for FormData
         body: formDataToSend
       });
-      const newProject = await res.json();
-      
-      if (!res.ok) throw new Error(newProject.error || 'Failed to create project');
 
-      // Simulate analysis progress before redirecting to real ID
-      let currentProgress = 0;
-      const timer = setInterval(() => {
-        currentProgress += 2;
-        setProgress(currentProgress);
-        if (currentProgress >= 100) {
-          clearInterval(timer);
-          setTimeout(() => {
-            router.push(`/projects/${newProject.id}`);
-            onClose();
-          }, 500);
-        }
-      }, 50);
+      // Handle non-JSON responses gracefully (e.g. Nginx errors)
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create project');
+        
+        // Success path
+        let currentProgress = 0;
+        const timer = setInterval(() => {
+          currentProgress += 5;
+          setProgress(currentProgress);
+          if (currentProgress >= 100) {
+            clearInterval(timer);
+            setTimeout(() => {
+              router.push(`/projects/${data.id}`);
+              onClose();
+            }, 500);
+          }
+        }, 50);
+      } else {
+        const errorText = await res.text();
+        console.error('Non-JSON Error Response:', errorText);
+        throw new Error(`Server Error (${res.status}): The server returned an unexpected response. Please check file size or permissions.`);
+      }
     } catch (err) {
       console.error('Project creation error:', err);
-      alert('Error creating project: ' + (err instanceof Error ? err.message : String(err)));
+      alert(err instanceof Error ? err.message : 'An unknown error occurred creating the project.');
       setStep('form');
     }
   };
