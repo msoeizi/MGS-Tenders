@@ -20,6 +20,10 @@ export async function GET(
     relativePath = relativePath.substring(1);
   }
   
+  // Also strip any instances of 'storage/' from the middle of the path if they exist
+  // sometimes placeholder paths might be like 'storage/pending/file.pdf' which becomes 'pending/file.pdf'
+  // but if the relativePath is 'storage/pending/file.pdf' after joining segments, we handle it.
+  
   // 3. Define all possible root locations to check
   const cwd = process.cwd();
   const rootsToTry = [

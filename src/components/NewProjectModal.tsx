@@ -48,17 +48,22 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
   const handleStartAnalysis = async () => {
     setStep('analyzing');
     try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('address', formData.address);
+      selectedFiles.forEach(file => {
+        formDataToSend.append('files', file);
+      });
+
       const res = await fetch('/api/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title,
-          address: formData.address,
-          files: selectedFiles.map(f => f.name)
-        })
+        // Note: fetch automatically sets the correct Content-Type for FormData
+        body: formDataToSend
       });
       const newProject = await res.json();
       
+      if (!res.ok) throw new Error(newProject.error || 'Failed to create project');
+
       // Simulate analysis progress before redirecting to real ID
       let currentProgress = 0;
       const timer = setInterval(() => {
@@ -74,6 +79,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
       }, 50);
     } catch (err) {
       console.error('Project creation error:', err);
+      alert('Error creating project: ' + (err instanceof Error ? err.message : String(err)));
       setStep('form');
     }
   };
