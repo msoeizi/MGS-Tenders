@@ -71,7 +71,17 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   };
 
   const copyPrompt = () => {
-    const prompt = `Run initial_document_review for project ${id}`;
+    const prompt = `Run initial_document_review for project ${id}.
+
+Mandatory workflow:
+1. Call getInitialDocumentReviewContext first.
+2. Use file_download_url to inspect the document.
+3. Build a wrapped JSON result with the key result.
+4. Submit it using submitInitialDocumentReviewResult.
+
+Do not submit an empty result.
+If full extraction is not possible, still submit a non-empty result with project_info, review_flags, and evidence_index.`;
+    
     navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

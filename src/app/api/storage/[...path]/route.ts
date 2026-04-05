@@ -2,78 +2,136 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
+export async function HEAD(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path: pathSegments } = await params;
+  const relativePath = pathSegments.join('/');
+  
+  const cwd = process.cwd();
+  const rootsToTry = [
+    path.join(cwd, 'storage'),
+    path.join(cwd, 'public', 'storage'),
+    cwd
+  ];
+
+  let filePath = null;
+  for (const root of rootsToTry) {
+    const candidate = path.join(root, relativePath);
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      filePath = candidate;
+      break;
+    }
+  }
+
+  if (!filePath) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  const stats = fs.statSync(filePath);
+  const contentType = getContentType(filePath);
+
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Content-Type': contentType,
+      'Content-Length': stats.size.toString(),
+      'Accept-Ranges': 'bytes',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: pathSegments } = await params;
+  const relativePath = pathSegments.join('/');
   
-  // 1. Join segments and normalize
-  let relativePath = pathSegments.join('/');
-  
-  // 2. Be extremely aggressive about removing leading 'storage/' segments
-  // to prevent double concatenation if the DB path already includes it.
-  while (relativePath.startsWith('storage/')) {
-    relativePath = relativePath.substring(8);
-  }
-  while (relativePath.startsWith('/')) {
-    relativePath = relativePath.substring(1);
-  }
-  
-  // Also strip any instances of 'storage/' from the middle of the path if they exist
-  // sometimes placeholder paths might be like 'storage/pending/file.pdf' which becomes 'pending/file.pdf'
-  // but if the relativePath is 'storage/pending/file.pdf' after joining segments, we handle it.
-  
-  // 3. Define all possible root locations to check
+  console.log(`[Storage API] Request for: ${relativePath}`);
+  console.log(`[Storage API] User-Agent: ${req.headers.get('user-agent')}`);
+
   const cwd = process.cwd();
   const rootsToTry = [
-    path.join(cwd, 'storage'),           // Root storage
-    path.join(cwd, 'public', 'storage'),  // Legacy public storage
-    cwd                                   // Root (in case path is absolute/full)
+    path.join(cwd, 'storage'),
+    path.join(cwd, 'public', 'storage'),
+    cwd
   ];
 
-  let filePath = '';
-  let found = false;
-
+  let filePath = null;
   for (const root of rootsToTry) {
     const candidate = path.join(root, relativePath);
-    if (fs.existsSync(candidate) && fs.lstatSync(candidate).isFile()) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
       filePath = candidate;
-      found = true;
       break;
     }
   }
 
-  // 4. Final check with better error message
-  if (!found) {
-    const triedPaths = rootsToTry.map(r => path.join(r, relativePath)).join('\n');
-    console.error(`File not found: ${relativePath}. Tried:\n${triedPaths}`);
-    return new NextResponse(
-      `File not found: ${relativePath}. \n\nChecked locations:\n${triedPaths}`,
-      { status: 404 }
-    );
+  if (!filePath) {
+    console.error(`[Storage API] File not found: ${relativePath}`);
+    return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
   try {
-    // 5. Read file and determine content type
-    const fileBuffer = fs.readFileSync(filePath);
-    const ext = path.extname(filePath).toLowerCase();
+    const stats = fs.statSync(filePath);
+    const contentType = getContentType(filePath);
     
-    let contentType = 'application/octet-stream';
-    if (ext === '.pdf') contentType = 'application/pdf';
-    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
-    else if (ext === '.png') contentType = 'image/png';
-    else if (ext === '.txt') contentType = 'text/plain';
+    // Create a readable stream for the file
+    const nodeStream = fs.createReadStream(filePath);
+    
+    // Convert Node.js ReadStream to Web ReadableStream
+    const stream = new ReadableStream({
+      start(controller) {
+        nodeStream.on('data', (chunk) => controller.enqueue(chunk));
+        nodeStream.on('end', () => controller.close());
+        nodeStream.on('error', (err) => controller.error(err));
+      },
+      cancel() {
+        nodeStream.destroy();
+      }
+    });
 
-    // 6. Return the file
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(stream, {
+      status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${path.basename(filePath)}"`,
+        'Content-Length': stats.size.toString(),
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (error: any) {
-    console.error('File Serving Error:', error);
+    console.error(`[Storage API] Error serving file ${relativePath}:`, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+function getContentType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.png': return 'image/png';
+    case '.txt': return 'text/plain';
+    case '.json': return 'application/json';
+    default: return 'application/octet-stream';
   }
 }

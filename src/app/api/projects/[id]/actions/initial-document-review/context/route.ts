@@ -51,7 +51,7 @@ export async function GET(
         document_id: file.id,
         document_title: file.original_filename,
         file_download_url: `${baseUrl}/api/storage/${file.file_storage_path}`,
-        extracted_text: extracted_text,
+        extracted_text: extracted_text || `[SYSTEM NOTE: Text extraction not yet performed for this file. Please download the file from the file_download_url to analyze its content.]`,
         page_map: null,
         page_image_urls: page_image_urls,
         upload_phase: file.upload_batch_id || "initial"
@@ -60,6 +60,8 @@ export async function GET(
 
     const response = {
       project_id: project.id,
+      project_title: project.project_title,
+      project_description: project.project_description,
       documents,
       system_defaults: {
         base_address: "47 Geraldton Crescent, North York, Ontario",
@@ -81,7 +83,11 @@ export async function GET(
       200
     );
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    });
   } catch (error: any) {
     console.error('Context Endpoint Error:', error);
     
@@ -97,6 +103,12 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message }, 
+      { 
+        status: 500,
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      }
+    );
   }
 }

@@ -48,8 +48,18 @@ export default function DocumentsTab({ project, onUpload }: {
     }
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const copyUrl = (asset: any) => {
-    const fullUrl = `${window.location.origin}/api/storage/${asset.file_storage_path}`;
+    if (asset.is_deleted_from_disk) return;
+    const baseUrl = window.location.origin;
+    const fullUrl = `${baseUrl}/api/storage/${asset.file_storage_path}`;
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(asset.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -99,7 +109,8 @@ export default function DocumentsTab({ project, onUpload }: {
                     {asset.original_filename}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>
-                    {new Date(asset.uploaded_at).toLocaleDateString()} at {new Date(asset.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    Uploaded {new Date(asset.uploaded_at).toLocaleDateString()}
+                    {asset.file_size_bytes && ` • ${formatFileSize(Number(asset.file_size_bytes))}`}
                   </div>
                 </div>
               </div>
@@ -110,11 +121,10 @@ export default function DocumentsTab({ project, onUpload }: {
                 paddingTop: '0.5rem', 
                 borderTop: '1px solid var(--surface-border)' 
               }}>
-                <a 
-                  href={`/api/storage/${asset.file_storage_path}`}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="btn btn-ghost"
+                <button 
+                  onClick={() => !asset.is_deleted_from_disk && window.open(`/api/storage/${asset.file_storage_path}`, '_blank')}
+                  disabled={asset.is_deleted_from_disk}
+                  className={`btn ${asset.is_deleted_from_disk ? 'btn-disabled' : 'btn-ghost'}`}
                   style={{ 
                     flex: 1, 
                     fontSize: '0.75rem', 
@@ -124,13 +134,14 @@ export default function DocumentsTab({ project, onUpload }: {
                     justifyContent: 'center',
                     gap: '0.4rem',
                     textDecoration: 'none',
-                    color: '#64748b'
+                    color: asset.is_deleted_from_disk ? 'var(--text-muted)' : '#64748b'
                   }}
                 >
                   👁️ View
-                </a>
+                </button>
                 <button 
                   onClick={() => copyUrl(asset)}
+                  disabled={asset.is_deleted_from_disk}
                   className={`btn ${copiedId === asset.id ? 'btn-success' : 'btn-ghost'}`}
                   style={{ 
                     flex: 1.5, 

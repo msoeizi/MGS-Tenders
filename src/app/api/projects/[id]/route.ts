@@ -40,6 +40,12 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    // Refresh last_accessed_at to prevent 30-day cleanup
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { last_accessed_at: new Date() }
+    });
+
     return NextResponse.json(project);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

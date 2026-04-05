@@ -21,6 +21,7 @@ model Project {
   created_by            String?
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
+  last_accessed_at      DateTime @default(now()) // For 30-day cleanup policy
   locked_for_export     Boolean  @default(false)
   version_number        Int      @default(1)
 
@@ -59,6 +60,8 @@ model FileAsset {
   mime_type                  String?
   page_count                 Int?
   file_storage_path          String
+  file_size_bytes            BigInt?  // Track storage usage
+  is_deleted_from_disk       Boolean  @default(false) // For 30-day cleanup policy
   extracted_text_path        String?
   rendered_image_path_prefix String?
   checksum                   String?

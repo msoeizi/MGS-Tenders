@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import NewProjectModal from "@/components/NewProjectModal";
+import StorageUsageCard from "@/components/dashboard/StorageUsageCard";
 import { Clock, MapPin, Activity, FileText } from "lucide-react";
 
 export default function Home() {
@@ -80,6 +81,8 @@ export default function Home() {
           fetchProjects(); // Refresh after creation
         }} 
       />
+
+      {!loading && <StorageUsageCard />}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-[#94a3b8]">

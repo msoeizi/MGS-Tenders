@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
             project_id,
             original_filename: fileName,
             file_storage_path: `project_${project_id}/${fileName}`,
+            file_size_bytes: BigInt(fileItem.size),
             mime_type: fileItem.type || 'application/octet-stream',
             source_interface: 'WebApp',
             is_active: true

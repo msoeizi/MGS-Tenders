@@ -12,8 +12,35 @@ export async function POST(
   let payload: any;
   
   try {
-    payload = await req.json();
-    const mode = payload.mode || 'replace';
+    const payload = await req.json();
+    console.log(`[Action Result] Incoming payload keys:`, Object.keys(payload));
+    
+    // 1. Normalize the data from various possible GPT formats
+    // GPT-4o sometimes sends the entire JSON as a string inside a 'result' key, 
+    // or nests it inside 'result' as an object, or sends it flat.
+    function normalizeData(p: any) {
+      // If it's a string, try parsing it
+      if (typeof p === 'string') {
+        try { return JSON.parse(p); } catch { return p; }
+      }
+      
+      // If result exists and is a string, parse it
+      if (p.result && typeof p.result === 'string') {
+        try { return JSON.parse(p.result); } catch { /* fall through */ }
+      }
+
+      // If result exists and is an object, use it
+      if (p.result && typeof p.result === 'object' && p.result !== null) {
+        // Deeply check if there's ANOTHER 'result' key (sometimes doubles up)
+        if (p.result.result) return normalizeData(p.result.result);
+        return p.result;
+      }
+
+      return p;
+    }
+
+    const data = normalizeData(payload);
+    const mode = data.mode || 'replace';
     
     const {
       project_info,
@@ -23,17 +50,18 @@ export async function POST(
       estimate_prefill,
       review_flags,
       evidence_index
-    } = payload;
+    } = data;
 
     // VALIDATION: Reject empty/meaningless submissions
-    const hasMillwork = millwork_schedule && millwork_schedule.length > 0;
-    const hasFinish = finish_schedule && finish_schedule.length > 0;
-    const hasEvidence = evidence_index && evidence_index.length > 0;
-    const hasFlags = review_flags && review_flags.length > 0;
+    const hasMillwork = Array.isArray(millwork_schedule) && millwork_schedule.length > 0;
+    const hasFinish = Array.isArray(finish_schedule) && finish_schedule.length > 0;
+    const hasEvidence = Array.isArray(evidence_index) && evidence_index.length > 0;
+    const hasFlags = Array.isArray(review_flags) && review_flags.length > 0;
     const hasBasicInfo = project_info && project_info.project_title && project_info.project_title.length > 3;
 
     if (!hasMillwork && !hasFinish && !hasEvidence && !hasFlags && !hasBasicInfo) {
-      const errorMsg = "Empty initial_document_review result rejected: no analyzable output was submitted.";
+      const errorMsg = `Empty result rejected. Detected: millwork=${hasMillwork}, finish=${hasFinish}, evidence=${hasEvidence}, flags=${hasFlags}, info=${hasBasicInfo}`;
+      console.warn(`[Action Result] ${errorMsg}`, { keys: Object.keys(data) });
       
       await logApiCommunication(
         project_id,

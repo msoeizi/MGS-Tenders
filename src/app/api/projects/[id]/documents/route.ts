@@ -36,6 +36,7 @@ export async function POST(
           project_id,
           original_filename: fileName,
           file_storage_path: `project_${project_id}/${fileName}`, // Relative to 'storage' root
+          file_size_bytes: BigInt(file.size),
           mime_type: file.type,
           source_interface: 'WebApp',
           is_active: true
