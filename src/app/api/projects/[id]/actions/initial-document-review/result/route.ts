@@ -114,15 +114,22 @@ export async function POST(
           await tx.finishScheduleItem.deleteMany({ where: { project_id } });
         }
         for (const f of finish_schedule) {
+          // Normalize unit_cost to number or null
+          let unitCost = null;
+          if (f.unit_cost !== undefined && f.unit_cost !== null && f.unit_cost !== '') {
+            unitCost = typeof f.unit_cost === 'number' ? f.unit_cost : parseFloat(f.unit_cost);
+            if (isNaN(unitCost)) unitCost = null;
+          }
+
           await tx.finishScheduleItem.create({
             data: {
               finish_code: f.finish_code,
               material_category: f.material_category,
               material_name: f.material_name,
               description: f.description,
-              areas_used: f.areas_used,
+              areas_used: Array.isArray(f.areas_used) ? f.areas_used.join(', ') : f.areas_used,
               unit_type: f.unit_type,
-              unit_cost: f.unit_cost,
+              unit_cost: unitCost,
               vendor_placeholder: f.vendor_placeholder,
               notes: f.notes,
               confidence: f.confidence,
@@ -139,15 +146,23 @@ export async function POST(
           await tx.millworkItem.deleteMany({ where: { project_id } });
         }
         for (const item of millwork_schedule) {
+          // Normalize tags to string
+          let tagsStr = '';
+          if (Array.isArray(item.tags)) {
+            tagsStr = item.tags.join(', ');
+          } else if (typeof item.tags === 'string') {
+            tagsStr = item.tags;
+          }
+
           const created = await tx.millworkItem.create({
             data: {
               item_name: item.item_name,
               room_area: item.room_area,
-              tags: item.tags,
+              tags: tagsStr,
               scope_description: item.scope_description,
-              finish_codes: item.finish_codes,
+              finish_codes: Array.isArray(item.finish_codes) ? item.finish_codes.join(', ') : item.finish_codes,
               confidence: item.confidence,
-              evidence_refs: item.evidence_refs,
+              evidence_refs: Array.isArray(item.evidence_refs) ? item.evidence_refs.join(', ') : item.evidence_refs,
               project_id
             }
           });
@@ -217,12 +232,14 @@ export async function POST(
             update: { 
               ...flagData, 
               related_item_id: prisma_related_id,
+              evidence_refs: Array.isArray(flag.evidence_refs) ? flag.evidence_refs.join(', ') : flag.evidence_refs,
               project_id 
             },
             create: { 
               ...flagData, 
               flag_id: flag_id || '',
               related_item_id: prisma_related_id,
+              evidence_refs: Array.isArray(flag.evidence_refs) ? flag.evidence_refs.join(', ') : flag.evidence_refs,
               project_id 
             }
           });
