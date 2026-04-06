@@ -256,9 +256,9 @@ export async function POST(
              });
 
              if (asset) {
-                const { generateSnapshotWithSource } = await import('@/lib/document-processor');
+                const { generateSnapshot } = await import('@/lib/document-processor');
                 const pageNum = parseInt(evData.page_number) || 1;
-                generateSnapshotWithSource(
+                generateSnapshot(
                   project_id, 
                   asset.id, 
                   asset.file_storage_path,
