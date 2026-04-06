@@ -151,7 +151,11 @@ model EstimateRow {
   project               Project  @relation(fields: [project_id], references: [id])
   linked_item_id        String?
   millworkItem          MillworkItem? @relation(fields: [linked_item_id], references: [id])
+  
   parent_estimate_row_id String?
+  parent                EstimateRow?   @relation("EstimateHierarchy", fields: [parent_estimate_row_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children              EstimateRow[]  @relation("EstimateHierarchy")
+
   row_label             String
   sow_text              String?
   material_cost         Float    @default(0)

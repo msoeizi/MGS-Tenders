@@ -177,17 +177,22 @@ export async function POST(
       if (estimate_prefill) {
         if (mode === 'replace') {
           // Manually clean up children first to avoid FK constraint errors 
-          // (even though we have Cascade in schema, manual cleanup is safer across all environments)
           const rowIds = (await tx.estimateRow.findMany({
             where: { project_id },
             select: { id: true }
           })).map((r: any) => r.id);
 
           if (rowIds.length > 0) {
+            // 1. Clear self-references first
+            await tx.estimateRow.updateMany({
+              where: { id: { in: rowIds } },
+              data: { parent_estimate_row_id: null }
+            });
+            // 2. Clear child tables
             await tx.materialBreakdown.deleteMany({ where: { estimate_row_id: { in: rowIds } } });
             await tx.subcontractorBlock.deleteMany({ where: { estimate_row_id: { in: rowIds } } });
           }
-          
+          // 3. Finally delete the rows
           await tx.estimateRow.deleteMany({ where: { project_id } });
         }
         for (const row of estimate_prefill) {
@@ -221,7 +226,7 @@ export async function POST(
           // Normalize bounding_box to string if it's an array/object
           const bBoxStr = bounding_box ? (typeof bounding_box === 'string' ? bounding_box : JSON.stringify(bounding_box)) : null;
 
-          await tx.evidenceRecord.upsert({
+          const createdEvidence = await tx.evidenceRecord.upsert({
             where: { evidence_id: evidence_id || '' },
             update: { 
               ...evData, 
@@ -237,6 +242,40 @@ export async function POST(
               project_id 
             }
           });
+
+          // Trigger snapshot generation if bounding_box is present
+          if (bounding_box && Array.isArray(bounding_box) && bounding_box.length === 4) {
+             // Asynchronously generate snapshot
+             // We don't strictly need to await this for the main transaction to succeed
+             // but we do it inside for now or just fire and forget
+             const asset = await tx.fileAsset.findFirst({
+               where: { 
+                 project_id,
+                 original_filename: { contains: document_id } 
+               }
+             });
+
+             if (asset) {
+                // Handle snapshot as a post-transaction task or await it here if fast enough
+                const { generateSnapshot } = await import('@/lib/document-processor');
+                const pageNum = parseInt(evData.page_number) || 1;
+                generateSnapshot(
+                  project_id, 
+                  asset.id, 
+                  pageNum, 
+                  bounding_box, 
+                  createdEvidence.id
+                ).then(async (snapshotUrl) => {
+                  if (snapshotUrl) {
+                    // Update the record with the new URL
+                    await prisma.evidenceRecord.update({
+                      where: { id: createdEvidence.id },
+                      data: { image_url: snapshotUrl }
+                    });
+                  }
+                }).catch(err => console.error('[Snapshot] Processing error:', err));
+             }
+          }
         }
       }
 

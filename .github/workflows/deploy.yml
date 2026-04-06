@@ -23,7 +23,8 @@ jobs:
 
       - name: Deploy with SSH
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            sudo apt-get update && sudo apt-get install -y poppler-utils libvips-dev &&
             cd /var/www/mgs-tender-automation &&
             git pull origin main &&
             npm install &&
