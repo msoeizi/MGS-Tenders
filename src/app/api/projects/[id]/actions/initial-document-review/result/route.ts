@@ -256,12 +256,12 @@ export async function POST(
              });
 
              if (asset) {
-                // Handle snapshot as a post-transaction task or await it here if fast enough
-                const { generateSnapshot } = await import('@/lib/document-processor');
+                const { generateSnapshotWithSource } = await import('@/lib/document-processor');
                 const pageNum = parseInt(evData.page_number) || 1;
-                generateSnapshot(
+                generateSnapshotWithSource(
                   project_id, 
                   asset.id, 
+                  asset.file_storage_path,
                   pageNum, 
                   bounding_box, 
                   createdEvidence.id

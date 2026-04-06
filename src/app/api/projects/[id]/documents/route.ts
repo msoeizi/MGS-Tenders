@@ -43,16 +43,15 @@ export async function POST(
         }
       });
       createdAssets.push(asset);
-
-      // Trigger asynchronous PDF-to-Image rendering
-      if (file.type === 'application/pdf') {
-        const { generatePageImages } = await import('@/lib/document-processor');
-        generatePageImages(project_id, asset.id, asset.file_storage_path)
-          .catch(err => console.error(`[Upload] Rendering error for ${asset.id}:`, err));
-      }
     }
 
-    return NextResponse.json({ success: true, assets: createdAssets.map(a => ({...a, file_size_bytes: a.file_size_bytes.toString()})) });
+    return NextResponse.json({ 
+      success: true, 
+      assets: createdAssets.map(a => ({
+        ...a, 
+        file_size_bytes: a.file_size_bytes?.toString() 
+      })) 
+    });
   } catch (error: any) {
     console.error('Upload Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
