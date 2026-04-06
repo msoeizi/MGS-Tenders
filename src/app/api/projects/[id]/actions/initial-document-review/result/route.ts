@@ -176,6 +176,18 @@ export async function POST(
       // 5. Sync Estimate Prefill (Replace)
       if (estimate_prefill) {
         if (mode === 'replace') {
+          // Manually clean up children first to avoid FK constraint errors 
+          // (even though we have Cascade in schema, manual cleanup is safer across all environments)
+          const rowIds = (await tx.estimateRow.findMany({
+            where: { project_id },
+            select: { id: true }
+          })).map((r: any) => r.id);
+
+          if (rowIds.length > 0) {
+            await tx.materialBreakdown.deleteMany({ where: { estimate_row_id: { in: rowIds } } });
+            await tx.subcontractorBlock.deleteMany({ where: { estimate_row_id: { in: rowIds } } });
+          }
+          
           await tx.estimateRow.deleteMany({ where: { project_id } });
         }
         for (const row of estimate_prefill) {
@@ -205,18 +217,22 @@ export async function POST(
       // 6. Sync Evidence Index (Upsert by evidence_id)
       if (evidence_index) {
         for (const ev of evidence_index) {
-          const { evidence_id, document_id, ...evData } = ev;
-          // Ensure we don't accidentally try to write evidence_id into the update payload if it's the unique key
+          const { evidence_id, document_id, bounding_box, ...evData } = ev;
+          // Normalize bounding_box to string if it's an array/object
+          const bBoxStr = bounding_box ? (typeof bounding_box === 'string' ? bounding_box : JSON.stringify(bounding_box)) : null;
+
           await tx.evidenceRecord.upsert({
             where: { evidence_id: evidence_id || '' },
             update: { 
               ...evData, 
+              bounding_box: bBoxStr,
               document_id: document_id,
               project_id 
             },
             create: { 
               ...evData, 
               evidence_id: evidence_id || '',
+              bounding_box: bBoxStr,
               document_id: document_id,
               project_id 
             }

@@ -104,6 +104,7 @@ model EvidenceRecord {
   confidence               Float?
   sheet_reference          String?
   image_url                String?
+  bounding_box             String? // JSON string: [ymin, xmin, ymax, xmax]
 }
 
 model MillworkItem {
@@ -181,7 +182,7 @@ model EstimateRow {
 model MaterialBreakdown {
   id                String      @id @default(uuid())
   estimate_row_id   String
-  estimateRow       EstimateRow @relation(fields: [estimate_row_id], references: [id])
+  estimateRow       EstimateRow @relation(fields: [estimate_row_id], references: [id], onDelete: Cascade)
   finish_code       String
   quantity          Float
   basis_note        String?
@@ -190,7 +191,7 @@ model MaterialBreakdown {
 model SubcontractorBlock {
   id                String   @id @default(uuid())
   estimate_row_id   String
-  estimateRow       EstimateRow @relation(fields: [estimate_row_id], references: [id])
+  estimateRow       EstimateRow @relation(fields: [estimate_row_id], references: [id], onDelete: Cascade)
   subcontract_type  String? // countertop_stone, glass, etc.
   material_subcost  Float    @default(0)
   fabricate_subcost Float    @default(0)

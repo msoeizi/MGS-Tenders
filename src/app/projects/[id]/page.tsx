@@ -80,8 +80,13 @@ Mandatory workflow:
 4. Submit it using submitInitialDocumentReviewResult.
 
 Constraints:
-- Each item in 'estimate_prefill' MUST include a 'row_label' string (e.g., "Wall Paneling", "Base Cabinets").
-- Each item in 'evidence_index' should include a 'sheet_reference' (e.g., "A501", "Plan Detail 4/A802") and an 'image_url' (selected from the 'page_image_urls' provided in the context for that specific page).
+- Each item in 'estimate_prefill' MUST include:
+    - 'row_label' string (e.g., "Wall Paneling", "Base Cabinets").
+    - 'sow_text' summarizing the work.
+- Each item in 'evidence_index' MUST include:
+    - 'sheet_reference' (e.g., "A501", "Plan Detail 4/A802").
+    - 'image_url' (the base file name from the context).
+    - 'bounding_box': [ymin, xmin, ymax, xmax] in normalized coordinates (0.0 to 1.0) pinpointing the location of the evidence on the drawing.
 - Do not submit an empty result.
 - If full extraction is not possible, still submit a non-empty result with project_info, review_flags, and evidence_index.`;
     
