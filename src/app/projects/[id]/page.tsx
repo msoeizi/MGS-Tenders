@@ -79,8 +79,11 @@ Mandatory workflow:
 3. Build a wrapped JSON result with the key result.
 4. Submit it using submitInitialDocumentReviewResult.
 
-Do not submit an empty result.
-If full extraction is not possible, still submit a non-empty result with project_info, review_flags, and evidence_index.`;
+Constraints:
+- Each item in 'estimate_prefill' MUST include a 'row_label' string (e.g., "Wall Paneling", "Base Cabinets").
+- Each item in 'evidence_index' should include a 'sheet_reference' (e.g., "A501", "Plan Detail 4/A802") and an 'image_url' (selected from the 'page_image_urls' provided in the context for that specific page).
+- Do not submit an empty result.
+- If full extraction is not possible, still submit a non-empty result with project_info, review_flags, and evidence_index.`;
     
     navigator.clipboard.writeText(prompt);
     setCopied(true);
@@ -118,13 +121,13 @@ If full extraction is not possible, still submit a non-empty result with project
       case 'documents':
         return <DocumentsTab project={project} onUpload={handleUpload} />;
       case 'millwork':
-        return <MillworkTab items={project.millworkItems} onUpdate={(data) => handleUpdate('millworkItems', data)} onViewEvidence={() => setActiveTab('evidence')} />;
+        return <MillworkTab items={project.millworkItems} allEvidence={project.evidenceRecords} onUpdate={(data) => handleUpdate('millworkItems', data)} onViewEvidence={() => setActiveTab('evidence')} />;
       case 'finishes':
-        return <FinishesTab finishes={project.finishScheduleItems} onUpdate={(data) => handleUpdate('finishScheduleItems', data)} />;
+        return <FinishesTab finishes={project.finishScheduleItems} allEvidence={project.evidenceRecords} onUpdate={(data) => handleUpdate('finishScheduleItems', data)} />;
       case 'estimate':
         return <EstimateTab estimateRows={project.estimateRows} finishes={project.finishScheduleItems} onUpdate={(data) => handleUpdate('estimateRows', data)} />;
       case 'flags':
-        return <ReviewFlagsTab flags={project.reviewFlags} onUpdate={(data) => handleUpdate('reviewFlags', data)} onViewEvidence={() => setActiveTab('evidence')} />;
+        return <ReviewFlagsTab flags={project.reviewFlags} allEvidence={project.evidenceRecords} onUpdate={(data) => handleUpdate('reviewFlags', data)} onViewEvidence={() => setActiveTab('evidence')} />;
       case 'evidence':
         return <EvidenceTab evidence={project.evidenceRecords} onUpdate={(data) => handleUpdate('evidenceRecords', data)} />;
       case 'logs':

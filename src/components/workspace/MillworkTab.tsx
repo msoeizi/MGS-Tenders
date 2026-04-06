@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import EvidencePopover from './EvidencePopover';
 
-export default function MillworkTab({ items, onUpdate, onViewEvidence }: { 
+export default function MillworkTab({ items, allEvidence, onUpdate, onViewEvidence }: { 
   items: any[], 
+  allEvidence: any[],
   onUpdate: (data: any[]) => void,
   onViewEvidence: (evidence_id: string) => void
 }) {
@@ -76,16 +78,13 @@ export default function MillworkTab({ items, onUpdate, onViewEvidence }: {
                 </td>
                 <td style={{ padding: '0.5rem' }}>
                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                     {(item.evidence_refs || '').split(',').filter(Boolean).map((ref: string) => (
-                       <button 
-                         key={ref} 
-                         className="badge badge-info" 
-                         style={{ cursor: 'pointer', border: 'none' }}
-                         onClick={() => onViewEvidence(ref.trim())}
-                        >
-                         📁 {ref.trim()}
-                       </button>
-                     ))}
+                      {(item.evidence_refs || '').split(',').filter(Boolean).map((ref: string) => (
+                        <EvidencePopover 
+                          key={ref.trim()} 
+                          evidenceId={ref.trim()} 
+                          allEvidence={allEvidence} 
+                        />
+                      ))}
                    </div>
                 </td>
                 <td style={{ padding: '0.5rem' }}>

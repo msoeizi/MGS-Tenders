@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import EvidencePopover from './EvidencePopover';
 
-export default function ReviewFlagsTab({ flags, onUpdate, onViewEvidence }: { 
+export default function ReviewFlagsTab({ flags, allEvidence, onUpdate, onViewEvidence }: { 
   flags: any[], 
+  allEvidence: any[],
   onUpdate: (data: any[]) => void,
   onViewEvidence: (evidence_id: string) => void
 }) {
@@ -59,14 +61,11 @@ export default function ReviewFlagsTab({ flags, onUpdate, onViewEvidence }: {
                />
                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.25rem' }}>
                  {(flag.evidence_refs || '').split(',').filter(Boolean).map((ref: string) => (
-                   <button 
-                     key={ref} 
-                     className="badge badge-info" 
-                     style={{ cursor: 'pointer', border: 'none', fontSize: '0.7rem' }}
-                     onClick={() => onViewEvidence(ref.trim())}
-                    >
-                     📁 {ref.trim()}
-                   </button>
+                   <EvidencePopover 
+                      key={ref.trim()} 
+                      evidenceId={ref.trim()} 
+                      allEvidence={allEvidence} 
+                    />
                  ))}
                </div>
             </div>

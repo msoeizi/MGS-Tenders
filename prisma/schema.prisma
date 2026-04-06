@@ -102,6 +102,8 @@ model EvidenceRecord {
   explanation              String?
   related_item_id          String?
   confidence               Float?
+  sheet_reference          String?
+  image_url                String?
 }
 
 model MillworkItem {
@@ -138,6 +140,7 @@ model FinishScheduleItem {
   vendor_placeholder String?
   notes             String?
   confidence        Float?
+  evidence_refs     String? // comma-separated evidence_ids
   linked_item_ids   String?
 }
 

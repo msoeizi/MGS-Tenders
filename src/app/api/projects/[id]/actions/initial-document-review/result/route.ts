@@ -133,6 +133,7 @@ export async function POST(
               vendor_placeholder: f.vendor_placeholder,
               notes: f.notes,
               confidence: f.confidence,
+              evidence_refs: Array.isArray(f.evidence_refs) ? f.evidence_refs.join(', ') : f.evidence_refs,
               project_id
             }
           });
@@ -184,6 +185,7 @@ export async function POST(
           const createdRow = await tx.estimateRow.create({
             data: {
               ...rowData,
+              row_label: rowData.row_label || rowData.item_name || 'Estimate Line',
               linked_item_id,
               project_id
             }
@@ -204,6 +206,7 @@ export async function POST(
       if (evidence_index) {
         for (const ev of evidence_index) {
           const { evidence_id, document_id, ...evData } = ev;
+          // Ensure we don't accidentally try to write evidence_id into the update payload if it's the unique key
           await tx.evidenceRecord.upsert({
             where: { evidence_id: evidence_id || '' },
             update: { 

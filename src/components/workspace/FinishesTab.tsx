@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import EvidencePopover from './EvidencePopover';
 
-export default function FinishesTab({ finishes, onUpdate }: { 
+export default function FinishesTab({ finishes, allEvidence, onUpdate }: { 
   finishes: any[], 
+  allEvidence: any[],
   onUpdate: (data: any[]) => void 
 }) {
   const [localFinishes, setLocalFinishes] = useState(finishes || []);
@@ -33,6 +35,7 @@ export default function FinishesTab({ finishes, onUpdate }: {
               <th style={{ padding: '0.75rem' }}>Material Name</th>
               <th style={{ padding: '0.75rem' }}>Unit Type</th>
               <th style={{ padding: '0.75rem' }}>Unit Cost</th>
+              <th style={{ padding: '0.75rem' }}>Evidence</th>
               <th style={{ padding: '0.75rem' }}>Notes</th>
             </tr>
           </thead>
@@ -82,6 +85,17 @@ export default function FinishesTab({ finishes, onUpdate }: {
                     onBlur={handleBlur} 
                     style={{ width: '100px' }}
                   />
+                </td>
+                <td style={{ padding: '0.5rem' }}>
+                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                      {(finish.evidence_refs || '').split(',').filter(Boolean).map((ref: string) => (
+                        <EvidencePopover 
+                          key={ref.trim()} 
+                          evidenceId={ref.trim()} 
+                          allEvidence={allEvidence} 
+                        />
+                      ))}
+                   </div>
                 </td>
                 <td style={{ padding: '0.5rem' }}>
                    <textarea 
