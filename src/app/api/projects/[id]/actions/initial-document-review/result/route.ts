@@ -232,24 +232,29 @@ export async function POST(
         if (mode === 'replace') {
           await tx.evidenceRecord.deleteMany({ where: { project_id } });
         }
+        // Pre-fetch a default file asset to fallback on in case GPT hallucinates or omits document_id
+        const fallbackFile = await tx.fileAsset.findFirst({ where: { project_id } });
+
         for (const ev of evidence_index) {
-          const { evidence_id, document_id, bounding_box, project, project_id: _gpt_project_id, ...evData } = ev;
+          const { evidence_id, document_id, bounding_box, project, project_id: _gpt_project_id, file, ...evData } = ev;
           // Normalize bounding_box to string if it's an array/object
           const bBoxStr = bounding_box ? (typeof bounding_box === 'string' ? bounding_box : JSON.stringify(bounding_box)) : null;
+
+          const final_document_id = document_id || fallbackFile?.id;
 
           const createdEvidence = await tx.evidenceRecord.upsert({
             where: { evidence_id: evidence_id || '' },
             update: { 
               ...evData, 
               bounding_box: bBoxStr,
-              document_id: document_id,
+              ...(final_document_id ? { file: { connect: { id: final_document_id } } } : {}),
               project: { connect: { id: project_id } }
             },
             create: { 
               ...evData, 
               evidence_id: evidence_id || '',
               bounding_box: bBoxStr,
-              document_id: document_id,
+              ...(final_document_id ? { file: { connect: { id: final_document_id } } } : {}),
               project: { connect: { id: project_id } }
             }
           });
