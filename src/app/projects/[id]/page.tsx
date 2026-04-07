@@ -75,9 +75,11 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
 Mandatory workflow:
 1. Call getInitialDocumentReviewContext first.
-2. Use file_download_url to inspect the document.
-3. Build a wrapped JSON result with the key result.
-4. Submit it using submitInitialDocumentReviewResult.
+2. USE YOUR PYTHON ENVIRONMENT (Advanced Data Analysis) to download the file at file_download_url using \`requests\`. YOU MUST do this to read the file! Treat the URL as a download link, not a webpage.
+3. Once downloaded, use your Python environment to read the PDF (e.g. using \`PyPDF2\`, \`pdfplumber\`, or \`fitz\`). 
+   - If the text is empty or garbled (indicating a scanned drawing), you MUST use Python OCR libraries to extract the data to the best of your ability.
+4. Build a wrapped JSON result with the key result based on your analysis.
+5. Submit it using submitInitialDocumentReviewResult.
 
 Constraints:
 - Each item in 'estimate_prefill' MUST include:
