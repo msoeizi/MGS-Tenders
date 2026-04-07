@@ -59,8 +59,8 @@ export async function POST(
     const hasFlags = Array.isArray(review_flags) && review_flags.length > 0;
     const hasBasicInfo = project_info && project_info.project_title && project_info.project_title.length > 3;
 
-    if (!hasMillwork && !hasFinish && !hasEvidence && !hasFlags && !hasBasicInfo) {
-      const errorMsg = `Empty result rejected. Detected: millwork=${hasMillwork}, finish=${hasFinish}, evidence=${hasEvidence}, flags=${hasFlags}, info=${hasBasicInfo}`;
+    if (!hasMillwork && !hasFinish && !hasEvidence && !hasFlags) {
+      const errorMsg = `Validation failed: Result must contain at least one millwork item, finish item, evidence record, or review flag with failure explanation.`;
       console.warn(`[Action Result] ${errorMsg}`, { keys: Object.keys(data) });
       
       await logApiCommunication(
@@ -310,7 +310,14 @@ export async function POST(
         }
       }
 
-      return { success: true, mode_applied: mode, millwork_count: millwork_schedule?.length || 0 };
+      return { 
+        success: true, 
+        mode_applied: mode, 
+        millwork_count: millwork_schedule?.length || 0,
+        finish_count: finish_schedule?.length || 0,
+        evidence_count: evidence_index?.length || 0,
+        review_flag_count: review_flags?.length || 0
+      };
     });
 
     // LOG SUCCESSFUL COMMUNICATION

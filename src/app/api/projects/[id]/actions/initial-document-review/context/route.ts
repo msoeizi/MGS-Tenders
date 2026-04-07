@@ -26,7 +26,7 @@ export async function GET(
 
     // 1. Determine the base URL dynamically from the request headers
     const host = req.headers.get('host') || 'localhost:3232';
-    const protocol = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
     // Prepare documents context
@@ -50,9 +50,44 @@ export async function GET(
       const rawPath = String(file.file_storage_path);
       const file_download_url = `${baseUrl}/api/storage/${rawPath.split('/').map(segment => encodeURIComponent(segment)).join('/')}`;
       
+      let document_access_status = 'failed';
+      let document_access_error = null;
+
+      const cwd = process.cwd();
+      const rootsToTry = [
+        path.join(cwd, 'storage'),
+        path.join(cwd, 'public', 'storage'),
+        cwd
+      ];
+      let hasFileOnDisk = false;
+      for (const root of rootsToTry) {
+        const candidate = path.join(root, rawPath);
+        if (fs.existsSync(candidate)) {
+          try {
+            if (fs.statSync(candidate).isFile()) {
+              hasFileOnDisk = true;
+              break;
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      }
+
+      if (extracted_text || page_image_urls.length > 0) {
+        document_access_status = 'ready';
+      } else if (hasFileOnDisk) {
+        document_access_status = 'file_url_only';
+      } else {
+        document_access_status = 'inaccessible';
+        document_access_error = 'File not found on server disk.';
+      }
+      
       return {
         document_id: file.id,
         document_title: file.original_filename,
+        document_access_status,
+        document_access_error,
         file_download_url,
         extracted_text: extracted_text || `[SYSTEM NOTE: Text extraction not yet performed for this file. Please download the file from the file_download_url to analyze its content.]`,
         page_map: null,
