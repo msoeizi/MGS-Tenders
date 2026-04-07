@@ -204,6 +204,9 @@ export async function POST(
           const createdRow = await tx.estimateRow.create({
             data: {
               ...rowData,
+              hardware_cost: rowData.hardware_cost ?? 0,
+              design_hours: rowData.design_hours ?? 0,
+              misc_cost_placeholder: rowData.misc_cost_placeholder ?? 0,
               row_label: rowData.row_label || rowData.item_name || 'Estimate Line',
               linked_item_id,
               project: { connect: { id: project_id } }
