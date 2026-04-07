@@ -121,20 +121,22 @@ export async function POST(
             if (isNaN(unitCost)) unitCost = null;
           }
 
+          const { finish_code, material_category, material_name, description, areas_used, unit_type, unit_cost: raw_cost, vendor_placeholder, notes, confidence, evidence_refs } = f;
+          
           await tx.finishScheduleItem.create({
             data: {
-              finish_code: f.finish_code,
-              material_category: f.material_category,
-              material_name: f.material_name,
-              description: f.description,
-              areas_used: Array.isArray(f.areas_used) ? f.areas_used.join(', ') : f.areas_used,
-              unit_type: f.unit_type,
+              finish_code: finish_code,
+              material_category: material_category,
+              material_name: material_name,
+              description: description,
+              areas_used: Array.isArray(areas_used) ? areas_used.join(', ') : areas_used,
+              unit_type: unit_type,
               unit_cost: unitCost,
-              vendor_placeholder: f.vendor_placeholder,
-              notes: f.notes,
-              confidence: f.confidence,
-              evidence_refs: Array.isArray(f.evidence_refs) ? f.evidence_refs.join(', ') : f.evidence_refs,
-              project_id
+              vendor_placeholder: vendor_placeholder,
+              notes: notes,
+              confidence: confidence,
+              evidence_refs: Array.isArray(evidence_refs) ? evidence_refs.join(', ') : evidence_refs,
+              project: { connect: { id: project_id } }
             }
           });
         }
@@ -164,7 +166,7 @@ export async function POST(
               finish_codes: Array.isArray(item.finish_codes) ? item.finish_codes.join(', ') : item.finish_codes,
               confidence: item.confidence,
               evidence_refs: Array.isArray(item.evidence_refs) ? item.evidence_refs.join(', ') : item.evidence_refs,
-              project_id
+              project: { connect: { id: project_id } }
             }
           });
           if (item.item_id) {
@@ -196,7 +198,7 @@ export async function POST(
           await tx.estimateRow.deleteMany({ where: { project_id } });
         }
         for (const row of estimate_prefill) {
-          const { material_breakdown, item_id, ...rowData } = row;
+          const { material_breakdown, item_id, project, project_id: _gpt_project_id, ...rowData } = row;
           const linked_item_id = item_id ? millwork_id_map[item_id] : null;
 
           const createdRow = await tx.estimateRow.create({
@@ -204,7 +206,7 @@ export async function POST(
               ...rowData,
               row_label: rowData.row_label || rowData.item_name || 'Estimate Line',
               linked_item_id,
-              project_id
+              project: { connect: { id: project_id } }
             }
           });
 
@@ -225,7 +227,7 @@ export async function POST(
           await tx.evidenceRecord.deleteMany({ where: { project_id } });
         }
         for (const ev of evidence_index) {
-          const { evidence_id, document_id, bounding_box, ...evData } = ev;
+          const { evidence_id, document_id, bounding_box, project, project_id: _gpt_project_id, ...evData } = ev;
           // Normalize bounding_box to string if it's an array/object
           const bBoxStr = bounding_box ? (typeof bounding_box === 'string' ? bounding_box : JSON.stringify(bounding_box)) : null;
 
@@ -235,14 +237,14 @@ export async function POST(
               ...evData, 
               bounding_box: bBoxStr,
               document_id: document_id,
-              project_id 
+              project: { connect: { id: project_id } }
             },
             create: { 
               ...evData, 
               evidence_id: evidence_id || '',
               bounding_box: bBoxStr,
               document_id: document_id,
-              project_id 
+              project: { connect: { id: project_id } }
             }
           });
 
@@ -288,7 +290,7 @@ export async function POST(
           await tx.reviewFlag.deleteMany({ where: { project_id } });
         }
         for (const flag of review_flags) {
-          const { flag_id, related_item_id, ...flagData } = flag;
+          const { flag_id, related_item_id, project, project_id: _gpt_project_id, ...flagData } = flag;
           const prisma_related_id = related_item_id ? millwork_id_map[related_item_id] : related_item_id;
 
           await tx.reviewFlag.upsert({
@@ -297,14 +299,14 @@ export async function POST(
               ...flagData, 
               related_item_id: prisma_related_id,
               evidence_refs: Array.isArray(flag.evidence_refs) ? flag.evidence_refs.join(', ') : flag.evidence_refs,
-              project_id 
+              project: { connect: { id: project_id } }
             },
             create: { 
               ...flagData, 
               flag_id: flag_id || '',
               related_item_id: prisma_related_id,
               evidence_refs: Array.isArray(flag.evidence_refs) ? flag.evidence_refs.join(', ') : flag.evidence_refs,
-              project_id 
+              project: { connect: { id: project_id } }
             }
           });
         }
