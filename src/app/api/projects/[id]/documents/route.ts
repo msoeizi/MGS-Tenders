@@ -35,7 +35,7 @@ export async function POST(
         data: {
           project_id,
           original_filename: fileName,
-          file_storage_path: `project_${project_id}/${fileName}`, // Relative to 'storage' root
+          file_storage_path: `project_${project_id}/${fileName}`,
           file_size_bytes: BigInt(file.size),
           mime_type: file.type,
           source_interface: 'WebApp',
@@ -43,6 +43,17 @@ export async function POST(
         }
       });
       createdAssets.push(asset);
+
+      // ── Trigger background hydration (fire-and-forget) ──
+      // Only process PDFs — images/other files don't need text extraction
+      const isPdf = file.type === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
+        import('@/lib/hydrate-document')
+          .then(({ hydrateDocument }) => 
+            hydrateDocument(project_id, asset.id, `project_${project_id}/${fileName}`)
+          )
+          .catch(err => console.error(`[Upload] Hydration trigger failed for ${fileName}:`, err));
+      }
     }
 
     return NextResponse.json({ 

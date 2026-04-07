@@ -1,7 +1,71 @@
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { execSync } from 'child_process';
+
+/**
+ * Extracts the full text layer from a PDF using pdfjs-dist.
+ * Returns an empty string if the PDF has no text layer (scanned).
+ */
+export async function extractTextFromPdf(absolutePdfPath: string): Promise<string> {
+  try {
+    // Dynamic import required — pdfjs-dist uses ESM internals
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs' as any);
+    const loadingTask = pdfjsLib.getDocument({ url: `file://${absolutePdfPath}`, useSystemFonts: true });
+    const pdfDoc = await loadingTask.promise;
+    const numPages = pdfDoc.numPages;
+    const pageTexts: string[] = [];
+
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item: any) => ('str' in item ? item.str : ''))
+        .join(' ');
+      pageTexts.push(`--- Page ${i} ---\n${pageText}`);
+    }
+
+    return pageTexts.join('\n\n');
+  } catch (err) {
+    console.warn('[DocumentProcessor] extractTextFromPdf failed:', err);
+    return '';
+  }
+}
+
+/**
+ * Renders each page of a PDF as a JPEG image using pdftoppm.
+ * Returns an array of relative storage paths (relative to process.cwd()/storage).
+ */
+export async function renderPdfPages(
+  absolutePdfPath: string,
+  outputDir: string,
+  prefix: string
+): Promise<{ paths: string[], page_count: number }> {
+  try {
+    await fs.mkdir(outputDir, { recursive: true });
+    const outputPrefix = path.join(outputDir, prefix);
+    const renderCmd = `pdftoppm -jpeg -r 150 "${absolutePdfPath}" "${outputPrefix}"`;
+    execSync(renderCmd, { timeout: 120000 });
+
+    const files = await fs.readdir(outputDir);
+    const rendered = files
+      .filter(f => f.startsWith(prefix) && (f.endsWith('.jpg') || f.endsWith('.jpeg') || f.endsWith('.ppm')))
+      .sort();
+
+    // Build paths relative to the storage root (process.cwd()/storage)
+    const storageRoot = path.join(process.cwd(), 'storage');
+    const relativePaths = rendered.map(f => {
+      const abs = path.join(outputDir, f);
+      return abs.replace(storageRoot + path.sep, '').replace(/\\/g, '/');
+    });
+
+    return { paths: relativePaths, page_count: rendered.length };
+  } catch (err) {
+    console.warn('[DocumentProcessor] renderPdfPages failed:', err);
+    return { paths: [], page_count: 0 };
+  }
+}
 
 /**
  * Creates a zoomed-in snapshot of a specific region of a page on-demand.

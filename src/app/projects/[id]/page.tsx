@@ -75,11 +75,19 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
 Mandatory workflow:
 1. Call getInitialDocumentReviewContext first.
-2. USE YOUR PYTHON ENVIRONMENT (Advanced Data Analysis) to download the file at file_download_url using \`requests\`. YOU MUST do this to read the file! Treat the URL as a download link, not a webpage.
-3. Once downloaded, use your Python environment to read the PDF (e.g. using \`PyPDF2\`, \`pdfplumber\`, or \`fitz\`). 
-   - If the text is empty or garbled (indicating a scanned drawing), you MUST use Python OCR libraries to extract the data to the best of your ability.
-4. Build a wrapped JSON result with the key result based on your analysis.
-5. Submit it using submitInitialDocumentReviewResult.
+2. For each document in the response:
+   - Read extracted_text in full — this is the server-extracted text from the PDF.
+   - If document_access_status is "images_only" or "ready", use page_image_urls to visually analyze each page. You MUST look at all pages provided.
+   - If document_access_status is "processing", note it in review_flags and skip that document.
+   - Do NOT attempt to download or fetch file_download_url. The content is already provided inline.
+3. Build a wrapped JSON result with the key result based on your analysis of all documents.
+4. Submit it using submitInitialDocumentReviewResult.
+
+Document analysis rules:
+- Read the FULL extracted_text for each document before drawing conclusions.
+- If page_image_urls are present, examine each image for drawings, schedules, legends, and millwork details.
+- If the text layer is empty but images exist (images_only), use your Vision capability to read the drawings.
+- Identify: millwork scope, finish codes, room/area assignments, quantities where visible, and evidence locations.
 
 Constraints:
 - Each item in 'estimate_prefill' MUST include:
