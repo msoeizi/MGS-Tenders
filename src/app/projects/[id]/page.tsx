@@ -88,7 +88,12 @@ Constraints:
     - 'image_url' (the base file name from the context).
     - 'bounding_box': [ymin, xmin, ymax, xmax] in normalized coordinates (0.0 to 1.0) pinpointing the location of the evidence on the drawing.
 - Do not submit an empty result.
-- If full extraction is not possible, still submit a non-empty result with project_info, review_flags, and evidence_index.`;
+- If full extraction is not possible, still submit a non-empty result with project_info, review_flags, and evidence_index.
+
+When submission is done, provide a summary of the following in this chat:
+1. What is the overall project about.
+2. What did you do during the process, what were you successful with, and what could you not do.
+3. How could you get more accurate results throughout the process?`;
     
     navigator.clipboard.writeText(prompt);
     setCopied(true);

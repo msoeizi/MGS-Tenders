@@ -14,7 +14,7 @@ export default function Sidebar() {
           <span style={{ fontSize: '1.1rem' }}>📊</span> Dashboard
         </Link>
         <Link href="/projects" className="nav-link">
-          <span style={{ fontSize: '1.1rem' }}>📁</span> Active Projects
+          <span style={{ fontSize: '1.1rem' }}>📁</span> Projects
         </Link>
       </nav>
 

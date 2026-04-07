@@ -24,6 +24,7 @@ model Project {
   last_accessed_at      DateTime @default(now()) // For 30-day cleanup policy
   locked_for_export     Boolean  @default(false)
   version_number        Int      @default(1)
+  is_archived           Boolean  @default(false)
 
   contacts              Contact[]
   fileAssets            FileAsset[]

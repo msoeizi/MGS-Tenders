@@ -78,7 +78,13 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const getArchived = searchParams.get('archived') === 'true';
+
     const projects = await prisma.project.findMany({
+      where: {
+        is_archived: getArchived
+      },
       orderBy: { created_at: 'desc' },
       include: {
         _count: {
