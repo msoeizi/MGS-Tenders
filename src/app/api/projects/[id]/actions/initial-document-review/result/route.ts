@@ -221,6 +221,9 @@ export async function POST(
 
       // 6. Sync Evidence Index (Upsert by evidence_id)
       if (evidence_index) {
+        if (mode === 'replace') {
+          await tx.evidenceRecord.deleteMany({ where: { project_id } });
+        }
         for (const ev of evidence_index) {
           const { evidence_id, document_id, bounding_box, ...evData } = ev;
           // Normalize bounding_box to string if it's an array/object
@@ -281,6 +284,9 @@ export async function POST(
 
       // 7. Sync Review Flags (Upsert by flag_id)
       if (review_flags) {
+        if (mode === 'replace') {
+          await tx.reviewFlag.deleteMany({ where: { project_id } });
+        }
         for (const flag of review_flags) {
           const { flag_id, related_item_id, ...flagData } = flag;
           const prisma_related_id = related_item_id ? millwork_id_map[related_item_id] : related_item_id;

@@ -46,7 +46,15 @@ export async function GET(
       data: { last_accessed_at: new Date() }
     });
 
-    return NextResponse.json(project);
+    const serializedProject = {
+      ...project,
+      fileAssets: project.fileAssets.map((asset: any) => ({
+        ...asset,
+        file_size_bytes: asset.file_size_bytes != null ? asset.file_size_bytes.toString() : null
+      }))
+    };
+
+    return NextResponse.json(serializedProject);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -69,6 +77,7 @@ export async function PATCH(
       estimateRows, 
       reviewFlags, 
       evidenceRecords,
+      fileAssets,
       ...projectFields 
     } = body;
 

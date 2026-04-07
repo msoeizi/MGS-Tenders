@@ -47,10 +47,13 @@ export async function GET(
         ? [1, 2, 3].map(p => `${baseUrl}/api/storage/${file.rendered_image_path_prefix}_page_${p}.jpg`)
         : [];
 
+      const rawPath = String(file.file_storage_path);
+      const file_download_url = `${baseUrl}/api/storage/${rawPath.split('/').map(segment => encodeURIComponent(segment)).join('/')}`;
+      
       return {
         document_id: file.id,
         document_title: file.original_filename,
-        file_download_url: `${baseUrl}/api/storage/${file.file_storage_path}`,
+        file_download_url,
         extracted_text: extracted_text || `[SYSTEM NOTE: Text extraction not yet performed for this file. Please download the file from the file_download_url to analyze its content.]`,
         page_map: null,
         page_image_urls: page_image_urls,

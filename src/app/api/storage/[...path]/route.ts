@@ -10,9 +10,9 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Range',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range, X-Requested-With',
       'Access-Control-Max-Age': '86400',
-    },
+    }
   });
 }
 
