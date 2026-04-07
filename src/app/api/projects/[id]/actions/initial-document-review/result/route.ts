@@ -198,7 +198,7 @@ export async function POST(
           await tx.estimateRow.deleteMany({ where: { project_id } });
         }
         for (const row of estimate_prefill) {
-          const { material_breakdown, item_id, project, project_id: _gpt_project_id, ...rowData } = row;
+          const { material_breakdown, item_id, linked_item_id: _gpt_linked_item, project, project_id: _gpt_project_id, ...rowData } = row;
           const linked_item_id = item_id ? millwork_id_map[item_id] : null;
 
           const createdRow = await tx.estimateRow.create({
@@ -211,7 +211,7 @@ export async function POST(
                 ? rowData.misc_cost_placeholder 
                 : (rowData.misc_notes || null),
               row_label: rowData.row_label || rowData.item_name || 'Estimate Line',
-              linked_item_id,
+              ...(linked_item_id ? { millworkItem: { connect: { id: linked_item_id } } } : {}),
               project: { connect: { id: project_id } }
             }
           });
